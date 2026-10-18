@@ -123,8 +123,10 @@ its source PDF sheet number, total sheets and the linked act attachment block.
 Imported drawings fit between the attachment block and title block at their
 original page size. Long title fields wrap inside their cells.
 
-Set the stage and frame signers in the system settings. A drawing can override
-these signers and stage, and has separate number and name fields in its preview
+Set the stage, reviewer and norm-control signer in the system settings. These
+reviewers apply automatically to every drawing in the system. Select the developer
+explicitly for each drawing; neither the system nor the execution supplies a default.
+A drawing can override the stage and has separate number and name fields in its preview
 card. Both title-block and attachment dates come from the linked АОСР.
 Shared framed drawings export separately for each linked act, using that act's
 selected sheets and attachment details. Export warns about empty signer cells

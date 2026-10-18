@@ -7,8 +7,8 @@ function drawingContext(p, s, item, vol, owner = null) {
   const a = owner || linked.find(a => a.id === record.frameActId) || item.owner || linked[0];
   const sp = vol?.sp || s.subprofiles[0], per = person(sp?.execId);
   const signer = key => {
-    const id = record.frameSigners?.[key] ?? s.frameSigners?.[key];
-    const selected = person(id === undefined && key === 'developed' ? sp?.execId : id);
+    const id = key === 'developed' ? record.frameSigners?.developed : s.frameSigners?.[key];
+    const selected = person(id);
     return selected ? shortFio(selected.fio || selected.fioShort || '') : '';
   };
   const cipher = record.rd || s.cipher || p.cipher || '';
@@ -29,10 +29,15 @@ function drawingContext(p, s, item, vol, owner = null) {
   }};
 }
 
-const FRAME_SIGNER_ROLES = [['developed', 'Разработал'], ['checked', 'Проверил'], ['controlled', 'Н. контр.']];
+const FRAME_SIGNER_ROLES = [['checked', 'Проверил'], ['controlled', 'Нормоконтроль']];
 function frameSignerControls(s, item = null) {
   const settings = item ? item.record.frameSigners : s.frameSigners;
-  return `<div class="card"><h3>${item ? 'Подписанты этой схемы' : 'Подписанты рамок системы'}</h3><p class="small mut">${item ? 'По умолчанию используются подписанты системы.' : 'Применяются ко всем схемам системы. Разработал по умолчанию — исполнитель комплекта.'} Дата берётся из связанного АОСР; место для подписи остаётся пустым.</p><div class="g3">${FRAME_SIGNER_ROLES.map(([key, label]) => `<label>${label}<select data-frame-signer="${key}" data-s="${s.id}" ${item ? `data-x="${item.id}"` : ''}><option value="__inherit__" ${settings?.[key] === undefined ? 'selected' : ''}>${item ? 'Из настроек системы' : 'По умолчанию'}</option><option value="" ${settings?.[key] === '' ? 'selected' : ''}>Не заполнять</option>${S.lib.people.map(p => `<option value="${esc(p.id)}" ${settings?.[key] === p.id ? 'selected' : ''}>${esc(p.fio || p.fioShort)}</option>`).join('')}</select></label>`).join('')}</div></div>`;
+  const roles = item ? [['developed', 'Разработал']] : FRAME_SIGNER_ROLES;
+  const inherited = item ? FRAME_SIGNER_ROLES.map(([key,label]) => {
+    const selected = person(s.frameSigners?.[key]);
+    return `<p class="small">${label}: ${esc(selected ? shortFio(selected.fio || selected.fioShort || '') : 'Не выбран в настройках системы')}</p>`;
+  }).join('') : '';
+  return `<div class="card"><h3>${item ? 'Разработчик схемы' : 'Подписанты рамок системы'}</h3><p class="small mut">${item ? 'Выберите человека, который выполнил чертёж. Проверяющий и нормоконтроль берутся из настроек системы.' : 'Проверяющий и нормоконтроль применяются ко всем схемам системы. Разработчик выбирается отдельно в каждой схеме.'} Дата берётся из связанного АОСР; место для подписи остаётся пустым.</p><div class="g2">${roles.map(([key,label]) => `<label>${label}<select data-frame-signer="${key}" data-s="${s.id}" ${item ? `data-x="${item.id}"` : ''}><option value="" ${!settings?.[key] ? 'selected' : ''}>Выберите подписанта</option>${S.lib.people.map(p=>`<option value="${esc(p.id)}" ${settings?.[key]===p.id?'selected':''}>${esc(p.fio || p.fioShort)}</option>`).join('')}</select></label>`).join('')}</div>${inherited}${item ? `<a href="#/s/${s.id}/params" data-mb="-1">Настроить подписантов системы</a>` : ''}</div>`;
 }
 document.addEventListener('change', event => {
   const el = event.target;

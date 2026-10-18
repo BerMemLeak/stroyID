@@ -25,7 +25,7 @@ def ready(v):
  // Explicit fixture signers keep the real frame/export checks unattended.
  const signerIds=S.lib.people.slice(0,3).map(person=>person.id);
  if(signerIds.length!==3)throw Error('Missing fixture signers');
- for(const system of [s,s2])system.frameSigners={developed:signerIds[0],checked:signerIds[1],controlled:signerIds[2]};
+ for(const system of [s,s2]){system.frameSigners={checked:signerIds[1],controlled:signerIds[2]};system.scheme.frameSigners={developed:signerIds[0]};}
  const material={id:'base-test',name:'Труба',baseId:'',brand:'',maker:'',category:'Труба',docs:[{id:'quality-test',type:'Паспорт',num:'123',date:'2026-10-12',file:'scheme.pdf',fileKey:ASSET,pages:2}]};S.lib.base.push(material);p.materials.push({id:'mat-test',baseId:material.id,name:material.name,docs:[]});a.materials=['mat-test'];a2.materials=['mat-test'];
  const common={id:'order-test',name:'Общий приказ',num:'1',date:'2026-10-12',file:'scheme.pdf',fileKey:ASSET,pages:2};p.admin=[common];save();await desktopFlush(true);
  if(p.systems.length!==2||s.id===s2.id||s.subprofiles[0].id===s2.subprofiles[0].id||a.executionId===a2.executionId)throw Error('Independent card allocation failed');
