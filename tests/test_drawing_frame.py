@@ -30,6 +30,55 @@ class DrawingFrameTests(unittest.TestCase):
    plan={'object':'Тест','volumes':[{'title':'Выполнение 2','documents':[{'id':'reg','kind':'registry','name':'Реестр'},{'id':'drawing','kind':'pdf','key':asset['id'],'name':'Схема','frame':config}]}]}
    prepared=prepare_export(store,plan);target=root/'combined.pdf';write_export(prepared,target,store);reader=PdfReader(target)
    self.assertEqual(len(reader.pages),5);self.assertAlmostEqual(float(reader.pages[3].mediabox.width)/MM,420,places=3);self.assertEqual(store.asset_path(asset['id'])[0].read_bytes(),self.source())
+ def test_every_page_has_total_attachment_and_fitted_source(self):
+  from PySide6.QtGui import QPainter, QPdfWriter
+  from PySide6.QtCore import QMarginsF
+  from PySide6.QtGui import QPageSize
+  with tempfile.TemporaryDirectory() as tmp:
+   root=Path(tmp);src=root/'edge.pdf';writer=QPdfWriter(str(src))
+   writer.setPageSize(QPageSize(QPageSize.PageSizeId.A3));writer.setPageMargins(QMarginsF(0,0,0,0));writer.setResolution(72)
+   painter=QPainter(writer)
+   for i in range(3):
+    if i:writer.newPage()
+    painter.drawText(5,15,'SOURCE-TOP');painter.drawText(5,writer.height()-5,'SOURCE-BOTTOM')
+   painter.end();del painter,writer
+   reader=PdfReader(src);store=Store(root/'db')
+   cfg={'fitContent':True,'values':{'АОСР':'ACT-42','Номер_Приложения':'2','Дата_Акта':'18.10.2026','Стадия':'ИД'}}
+   result=framed_reader(reader,[0,1,2],cfg,store)
+   for i,page in enumerate(result.pages):
+    text=''.join(page.extract_text().split());self.assertIn('ACT-42',text);self.assertIn('18.10.2026',text)
+    found=[]
+    page.extract_text(visitor_text=lambda text,cm,tm,*args:found.append((text,cm,tm)))
+    for text,cm,tm in found:
+     if 'SOURCE' not in text:continue
+     x=tm[4]*cm[0]+tm[5]*cm[2]+cm[4];y=tm[4]*cm[1]+tm[5]*cm[3]+cm[5]
+     self.assertGreater(x,20*MM);self.assertGreater(y,60*MM);self.assertLess(y,float(page.mediabox.height)-30*MM)
+    # Total and sheet are separate text spans at the title block positions.
+    self.assertTrue(any(text.strip()=='3' for text,_,_ in found))
+    self.assertTrue(any(text.strip()==str(i+1) for text,_,_ in found))
+   selected=framed_reader(reader,[1],cfg,store)
+   text=''.join(selected.pages[0].extract_text().split());self.assertIn('ACT-42',text)
+   self.assertIn('3',text)  # Total is source PDF size even when exporting a range.
+   self.assertNotIn('ACT-42',reader.pages[0].extract_text())
+
+ def test_long_title_is_separate_readable_lines(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   store=Store(Path(tmp)/'db');reader=PdfReader(io.BytesIO(self.source()))
+   title='Исполнительная схема устройства системы водоснабжения первого этажа в осях 1–7 / Д–Ж'
+   result=framed_reader(reader,[1],{'values':{'Название_Схемы':title}},store)
+   spans=[]
+   def visit(text,cm,tm,font,size):
+    normalized=''.join(text.split())
+    if normalized and any(word in normalized for word in ('Исполнительная','водоснабжения','осях')):
+     y=tm[4]*cm[1]+tm[5]*cm[3]+cm[5]
+     effective=size*(cm[2]**2+cm[3]**2)**0.5
+     spans.append((normalized,y,effective))
+   result.pages[0].extract_text(visitor_text=visit)
+   self.assertGreaterEqual(len(spans),2)
+   self.assertGreater(len({round(y,1) for _,y,_ in spans}),1)
+   self.assertTrue(all(size>=3.4*MM for _,_,size in spans),spans)
+   self.assertTrue(all(5*MM<y<20*MM for _,y,_ in spans),spans)
+
  def test_bad_custom_template_rejected(self):
   with self.assertRaises(ValueError):template_svg('<svg><script>alert(1)</script></svg>',{})
   with self.assertRaises(ValueError):template_svg('<svg><text>{{Неизвестный}}</text></svg>',{})

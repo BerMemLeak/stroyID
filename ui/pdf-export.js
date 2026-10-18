@@ -73,7 +73,9 @@ A.downloadAssemblyPdf=async d=>{
  pdfExportBusy=true;modal('Сборка PDF','<p>Подготовка документов и проверка исходных PDF…</p><p class="small mut">После проверки выберите, куда сохранить файл.</p>',[]);
  try{
   await new Promise(resolve=>setTimeout(resolve,80));await desktopFlush();
-  const snapshot=pdfPlan(p,volumes),r=await desktopTrack(nativeCall('exportPdf',{plan:snapshot,filename:slug(p.short||p.name)+'_'+(all?'Вся_ИД':slug(vol.short))+'.pdf'}));
+  const snapshot=pdfPlan(p,volumes);
+  if(!await confirmFrameWarnings([snapshot])) return null;
+  const r=await desktopTrack(nativeCall('exportPdf',{plan:snapshot,filename:slug(p.short||p.name)+'_'+(all?'Вся_ИД':slug(vol.short))+'.pdf'}));
   if(!r){closeModal();toast('Сохранение PDF отменено');return null;}
   S.builds=S.builds||[];S.builds.unshift({id:uid(),pid:p.id,key:all?'ALL':vol.key,ts:nowStr(),pages:r.pages,docs:r.documents,by:APP.user,format:'pdf'});
   logH('Собран PDF: '+(all?'вся ИД объекта':vol.short));save();await desktopFlush();

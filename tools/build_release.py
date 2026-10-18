@@ -69,6 +69,8 @@ def build():
         command([sys.executable,'tests/smoke_save_locks.py'],150,stage=report['stage'])
         report['stage'] = 'qt-document-workflow'
         command([sys.executable,'tests/smoke_workflow.py'],120,stage=report['stage'])
+        report['stage'] = 'qt-frame-reference'
+        command([sys.executable,'tests/smoke_frames.py'],120,stage=report['stage'])
         report['stage'] = 'pyinstaller'
         command([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean',
                  '--distpath', 'dist-onefile', 'StroyID.spec'], stage=report['stage'])
