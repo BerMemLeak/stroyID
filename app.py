@@ -1,4 +1,4 @@
-"""СтройИД Desktop 0.9.4. Windows packaging entry point."""
+"""СтройИД Desktop 0.9.5. Windows packaging entry point."""
 from __future__ import annotations
 import json
 import os
@@ -208,6 +208,31 @@ class Bridge(QObject):
                 if target:
                     Path(target).write_bytes(TEMPLATE.read_bytes())
                 value = bool(target)
+            elif operation == 'frameFontStatus':
+                from drawing_frame import resolve_frame_font
+                try:
+                    family = resolve_frame_font({'fontKey': params.get('key'), 'requireFont': True}, self.store)
+                    value = {'available': True, 'family': family}
+                except ValueError:
+                    value = {'available': False}
+            elif operation == 'pickFrameFont':
+                from PySide6.QtGui import QFontDatabase
+                name, _ = QFileDialog.getOpenFileName(self.window, 'Шрифт ISOCPEUR', '', 'Шрифты (*.ttf *.otf)')
+                value = None
+                if name:
+                    fid = QFontDatabase.addApplicationFont(name)
+                    families = QFontDatabase.applicationFontFamilies(fid) if fid >= 0 else []
+                    if not any(f.casefold() == 'isocpeur' for f in families):
+                        if fid >= 0: QFontDatabase.removeApplicationFont(fid)
+                        raise ValueError('Выбранный файл не содержит шрифт ISOCPEUR')
+                    value = self.store.import_file(name)
+            elif operation == 'referenceTemplate':
+                from word_templates import inspect_docx
+                section = params.get('section')
+                if section not in ('title', 'reg'):
+                    raise ValueError('Неизвестный встроенный шаблон')
+                path = Path(__file__).parent / 'ui' / 'reference-templates' / ('title.docx' if section == 'title' else 'registry.docx')
+                value = {**self.store.import_file(path), **inspect_docx(path.read_bytes())}
             elif operation == 'pickFrameTemplate':
                 from drawing_frame import template_svg
                 name, _ = QFileDialog.getOpenFileName(self.window, 'HTML-шаблон рамки', '', 'HTML (*.html)')

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.9.4'
+VERSION = '0.9.5'
 
 
 def command(args, timeout=900, cwd=ROOT, stage='command', logs=None):
@@ -62,6 +62,8 @@ def build():
         command([sys.executable,'tests/smoke_regressions.py'],150,stage=report['stage'])
         report['stage'] = 'qt-save-locks'
         command([sys.executable,'tests/smoke_save_locks.py'],150,stage=report['stage'])
+        report['stage'] = 'qt-document-workflow'
+        command([sys.executable,'tests/smoke_workflow.py'],120,stage=report['stage'])
         report['stage'] = 'pyinstaller'
         command([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean',
                  '--distpath', 'dist-onefile', 'StroyID.spec'], stage=report['stage'])

@@ -431,7 +431,7 @@ class Store(FastFiles,CoreStore):
     for x in v.values():yield from strings(x)
    elif isinstance(v,list):
     for x in v:yield from strings(x)
-  needed=set(strings(state['projects']));lib={k:[] for k in ('base','orgs','people','orders','profiles','templates')};chosen=set()
+  needed=set(strings(state['projects']));lib={k:[] for k in ('base','quality','orgs','people','orders','profiles','templates')};chosen=set()
   original=state['lib'];all_trash=state.get('trash',[]);archived=[];project_ids={p['id'] for p in state['projects']}
   for _ in range(10):
    count=len(archived)

@@ -81,3 +81,36 @@ See CHANGES_*.txt files for detailed version history.
 ## License
 
 See THIRD_PARTY.md for third-party licenses.
+
+## Document workflow in 0.9.5
+
+Card fields save automatically after a short pause. Navigation, deletion and
+export wait for pending writes. Creation dialogs still require an explicit
+Create/Save action. A failed write leaves the entered data available for retry.
+
+A quality document can be shared by multiple materials. Use **Добавить документ**
+or **Выбрать существующий** in a material card; **Отвязать** removes only that
+material's link. Existing private documents can be shared through their editor.
+
+On the assembly page, select the issuing company, customer, export profile or
+custom order, and whether to include common and operational documentation.
+Drag a handle to reorder sections/documents; Alt + Up/Down is also supported.
+Company selection changes generated documents without changing the object card.
+
+HTML drawing frames are configured in **Профили и шаблоны → Исполнительные схемы**.
+Frames require the ISOCPEUR font; the same section can check availability and
+load a font file. The font is not bundled. Original drawing PDFs are preserved.
+The reference uses ГОСТ Р 21.101-2026, appendices Е and Ж; the total sheet count
+is shown on the first sheet only. Sources checked:
+[Rosstandart record](https://protect.gost.ru/gost/details/17bc12e8-6579-4145-b141-56855e772e7f)
+and the published standard's form 3 and clause Е.1.
+
+The supplied Word title and registry examples are available from their template
+sections. A title can use `{{Логотип_Компании}}`; titles without that tag receive
+the selected company's logo at the top right.
+
+`python tools/build_release.py` runs the unit tests, real Qt integration checks,
+PyInstaller packaging and an isolated executable self-test. Windows builds are
+also checked by `.github/workflows/build-windows.yml`. Linux build evidence is
+in `validation/0.9.5-linux`; Microsoft Word COM conversion requires Windows and
+is not executed by the Linux validation.

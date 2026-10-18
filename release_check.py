@@ -20,7 +20,7 @@ def run(report_path):
 
     report_path = Path(report_path).resolve()
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report = {'version': '0.9.4', 'passed': False, 'platform': platform.platform(), 'python': sys.version,
+    report = {'version': '0.9.5', 'passed': False, 'platform': platform.platform(), 'python': sys.version,
               'qt': qVersion(), 'frozen': bool(getattr(sys, 'frozen', False)), 'checks': [], 'errors': []}
     app = QApplication.instance() or QApplication([])
     stage = 0
@@ -76,7 +76,7 @@ def run(report_path):
                   document.querySelector('input[name=ns][value="ВК"]').checked=true;MB[1].f();
                   const s=p.systems[0];A.newAct({s:s.id});MB[1].f();
                   const a=s.acts[0];a.scan={file:ASSET.name,fileKey:ASSET.id,pages:ASSET.pages};
-                  Object.assign(s.scheme,{file:ASSET.name,fileKey:ASSET.id,pages:ASSET.pages,frameEnabled:true});
+                  Object.assign(s.scheme,{file:ASSET.name,fileKey:ASSET.id,pages:ASSET.pages,frameEnabled:false});
                   S.meta.name='До восстановления';save();await desktopFlush(true);await desktopFlush(true);
                   const b=await backup('Проверка упакованного приложения');
                   S.meta.name='После изменения';save();await desktopFlush(true);

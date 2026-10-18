@@ -67,7 +67,7 @@ def validate_state(s):
    if not isinstance(p.get(k),list):raise ValueError('Неполная структура объекта: '+k)
  return s
 
-LABELS={'projects':'Объекты','executions':'Выполнения','systems':'Системы','materials':'Материалы','acts':'Акты скрытых работ','aik':'Входной контроль','journals':'Журналы','surveys':'Исполнительные съёмки','opsDocs':'Эксплуатация','admin':'Общие документы','sketches':'Исполнительные схемы','trials':'Испытания','orgs':'Организации','people':'Представители','orders':'Приказы и допуски','base':'Материалы и паспорта','profiles':'Профили заказчиков','templates':'Шаблоны Word'}
+LABELS={'quality':'Документы качества','projects':'Объекты','executions':'Выполнения','systems':'Системы','materials':'Материалы','acts':'Акты скрытых работ','aik':'Входной контроль','journals':'Журналы','surveys':'Исполнительные съёмки','opsDocs':'Эксплуатация','admin':'Общие документы','sketches':'Исполнительные схемы','trials':'Испытания','orgs':'Организации','people':'Представители','orders':'Приказы и допуски','base':'Материалы и паспорта','profiles':'Профили заказчиков','templates':'Шаблоны Word'}
 CHILDREN={'projects':['executions','systems','materials','journals','surveys','opsDocs','admin'],'systems':['acts','aik','journals','sketches','trials']}
 IMAGE_FIELDS=('img','photo','logo','sign')
 

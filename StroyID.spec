@@ -4,10 +4,7 @@ project = Path(SPECPATH)
 a = Analysis([str(project / 'app.py')], pathex=[str(project)],
              binaries=[], datas=[(str(project / 'ui'), 'ui'),
                                  (str(project / 'THIRD_PARTY.md'), '.'),
-                                 (str(project / 'USAGE.txt'), '.'),
-                                 (str(project / 'WORD_TEMPLATES.txt'), '.'),
-                                 (str(project / 'FOLDER_STORAGE.txt'), '.'),
-                                 (str(project / 'EXECUTIONS_AND_FRAMES.txt'), '.')],
+                                 (str(project / 'README.md'), '.')],
              hiddenimports=['PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets',
                             'PySide6.QtWebChannel', 'PySide6.QtPdf', 'PySide6.QtPrintSupport'],
              hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[], noarchive=False)
