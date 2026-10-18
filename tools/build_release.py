@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import traceback
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -38,6 +39,40 @@ def command(args, timeout=900, cwd=ROOT, stage='command', logs=None):
         if log_path.exists():
             lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()
             print('\n'.join(lines[-120:]), flush=True)
+
+
+def close_running_release(target):
+    """Request a normal UI close only for processes running this exact EXE."""
+    if sys.platform != 'win32':
+        return
+    script = ROOT / 'tools' / 'close_release.ps1'
+    subprocess.run(['powershell.exe', '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                    '-File', str(script), '-Executable', str(target.resolve())],
+                   timeout=25, check=True)
+
+
+def publish_executable(executable, target):
+    """Replace the fixed release path after a normal close and bounded retries."""
+    descriptor, name = tempfile.mkstemp(prefix=target.stem + '-', suffix='.tmp', dir=target.parent)
+    os.close(descriptor)
+    temporary = Path(name)
+    try:
+        shutil.copyfile(executable, temporary)
+        temporary.chmod(executable.stat().st_mode)
+        for attempt in range(11):
+            try:
+                temporary.replace(target)
+                return target
+            except PermissionError as error:
+                if attempt == 0:
+                    print('Закрытие запущенной версии перед заменой ' + str(target), flush=True)
+                    close_running_release(target)
+                if attempt == 10:
+                    raise PermissionError('Не удалось заменить ' + str(target) +
+                        '. Закройте СтройИД и проверьте доступ к файлу; новая сборка сохранена в ' + str(executable)) from error
+                time.sleep(0.5)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def build():
@@ -90,14 +125,7 @@ def build():
             raise ValueError('Packaged application self-test failed')
         report['packaged_check'] = test
         report['stage'] = 'publish-file'
-        target = output / filename
-        temporary = target.with_suffix('.tmp')
-        try:
-            shutil.copyfile(executable, temporary)
-            temporary.chmod(executable.stat().st_mode)
-            temporary.replace(target)
-        finally:
-            temporary.unlink(missing_ok=True)
+        target = publish_executable(executable, output / filename)
         digest = hashlib.sha256()
         with target.open('rb') as stream:
             for data in iter(lambda: stream.read(1024 * 1024), b''):
