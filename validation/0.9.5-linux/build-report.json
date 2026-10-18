@@ -1,0 +1,34 @@
+{
+  "version": "0.9.5",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "created": "2026-10-18T13:48:50.736976+00:00",
+  "passed": true,
+  "error": null,
+  "stage": "complete",
+  "returncode": 0,
+  "packaged_check": {
+    "version": "0.9.5",
+    "passed": true,
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "qt": "6.11.2",
+    "frozen": true,
+    "checks": [
+      "packed_docx_engine_and_native_sample",
+      "qt_pdf_import_and_original_file",
+      "local_html_and_webchannel",
+      "new_object_system_act",
+      "folder_save_queue",
+      "zip_backup_and_restore",
+      "native_csv_download",
+      "native_complete_object_pdf_export",
+      "close_flush_and_reopen_database"
+    ],
+    "errors": []
+  },
+  "mode": "onefile",
+  "artifact": "StroyID",
+  "sha256": "c720bf08f01dfabad4e44cf23beb4fdc94497949439b07d827c550e93a6bee14",
+  "size": 237476384
+}

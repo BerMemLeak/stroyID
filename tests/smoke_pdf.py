@@ -120,7 +120,7 @@ timer = QTimer()
 timer.timeout.connect(poll)
 timer.start(200)
 QTimer.singleShot(60000, lambda: fail('PDF UI test timed out'))
-with patch('app.QFileDialog.getSaveFileName', return_value=(str(output), 'PDF')):
+with patch('drawing_frame.resolve_frame_font', return_value='DejaVu Sans'), patch('app.QFileDialog.getSaveFileName', return_value=(str(output), 'PDF')):
     code = application.exec()
 dispose_window(window)
 store.close()

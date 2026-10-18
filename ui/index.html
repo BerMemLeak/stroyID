@@ -985,7 +985,7 @@ const ROWT={doc:()=>({id:uid(),type:'Сертификат соответстви
 /* ---------- ввод данных ---------- */
 function apply(t,fromInput){const ent=t.dataset.ent,id=t.dataset.id,f=t.dataset.f;if(!['ui','root','app'].includes(ent)&&!guard(entKey(ent,id))){render();return}const o=getEnt(ent,id);if(!o)return;
  let v=t.type==='checkbox'?t.checked:t.value;if(t.type==='number')v=v===''?'':Number(v);if(f==='docRole'||f==='photoLayout')v=Number(v);
- const old=getPath(o,f);if(old===v){if(!fromInput&&t.dataset.rr)render();return}if(ent==='app'&&(f==='user'||f==='pc'))releaseMine(null);setPath(o,f,v);
+ if(['start','end','validFrom','validTo'].includes(f)){const a=f==='start'||f==='validFrom'?v:o.start||o.validFrom,b=f==='end'||f==='validTo'?v:o.end||o.validTo;if(a&&b&&b<a){toast('Окончание не может быть раньше начала');t.value=getPath(o,f)||'';return;}}const old=getPath(o,f);if(old===v){if(!fromInput&&t.dataset.rr)render();return}if(ent==='app'&&(f==='user'||f==='pc'))releaseMine(null);setPath(o,f,v);if(ent==='per'&&f==='fio')o.fioShort=shortFio(v);
  if(ent==='app')saveApp();if(ent==='root'&&f==='meta.name'){const rc=APP.recent.find(x=>x.path===APP.current);if(rc){rc.name=v;saveApp()}}
  if(ent==='act'&&f==='type'){const s=ctx('act',id).s;o.num=nextNum(s,v,o.id)}
  if(ent==='aik'&&f==='materialId'){const s=ctx('aik',id).s;s.acts.forEach(a=>Object.keys(a.aikLinks).forEach(m=>{if(a.aikLinks[m]===o.id&&m!==v)delete a.aikLinks[m]}))}
@@ -1449,5 +1449,7 @@ A.schemeVer=d=>{if(!guard('sys:'+d.s))return;const s=getEnt('sys',d.s),sc=s.sche
 <script src="frame-controls.js"></script>
 <script src="assembly.js"></script>
 <script src="manual.js"></script>
+<script src="workflow.js"></script>
+<link rel="stylesheet" href="workflow.css">
 </body>
 </html>

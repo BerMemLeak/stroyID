@@ -186,6 +186,9 @@ def fill_docx(data, target, values, collections=None):
     missing = set(inspect_docx(data)['tags']) - known
     if missing:
         raise ValueError('Неизвестные теги: ' + ', '.join('{{' + x + '}}' for x in sorted(missing)))
+    logo = values.get('Логотип_Компании', '')
+    logo_tag_present = 'Логотип_Компании' in inspect_docx(data)['tags']
+    text_values = {**values, 'Логотип_Компании': ''}
     for name in list(parts):
         if not PART.match(name):
             continue
@@ -227,7 +230,17 @@ def fill_docx(data, target, values, collections=None):
                     pos += 1
         for paragraph in root.iter('{' + W + '}p'):
             if id(paragraph) not in processed:
-                replace_text(paragraph, values)
+                has_logo = bool(re.search(r'\{\{\s*Логотип_Компании\s*\}\}', paragraph_text(paragraph)))
+                replace_text(paragraph, text_values)
+                if has_logo and logo:
+                    add_picture(paragraph, logo, parts, name, 1.5)
+        if name == 'word/document.xml' and logo and not logo_tag_present:
+            body = root.find('{' + W + '}body')
+            paragraph = ET.Element('{' + W + '}p')
+            props = ET.SubElement(paragraph, '{' + W + '}pPr')
+            ET.SubElement(props, '{' + W + '}jc', {'{' + W + '}val': 'right'})
+            add_picture(paragraph, logo, parts, name, 1.5)
+            body.insert(0, paragraph)
         parts[name] = serialize_xml(root, parts[name])
     target = Path(target)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -242,12 +255,14 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $word=$null; $documents=$null; $document=$null; $failed=$false; $sourceName=''
 try {
-    $jobs=@(Get-Content -LiteralPath $Manifest -Raw -Encoding UTF8 | ConvertFrom-Json)
+    $jobs=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($Manifest, [Text.Encoding]::UTF8))
     $word=New-Object -ComObject Word.Application
     $word.Visible=$false; $word.DisplayAlerts=0; $word.AutomationSecurity=3
     $documents=$word.Documents
     foreach ($job in $jobs) {
-        $sourceName=[string]$job.source
+        if ($job.source -isnot [string] -or $job.target -isnot [string]) { throw 'Invalid Word conversion job: source and target must be single paths' }
+        $sourceName=[IO.Path]::GetFullPath($job.source)
+        if (!(Test-Path -LiteralPath $sourceName -PathType Leaf)) { throw ('Source does not exist: '+$sourceName) }
         try {
             for ($attempt=0; $attempt -lt 3; $attempt++) {
                 try {

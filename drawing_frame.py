@@ -4,14 +4,28 @@ import base64, html, io, re, tempfile
 from pathlib import Path
 from pypdf import PdfReader, PdfWriter
 from PySide6.QtCore import QByteArray, QMarginsF, QRectF, QSize, QSizeF, QBuffer, QIODevice
-from PySide6.QtGui import QPageSize, QPainter, QPdfWriter, QImage, QFont, QFontMetricsF
+from PySide6.QtGui import QPageSize, QPainter, QPdfWriter, QImage, QFont, QFontMetricsF, QFontDatabase
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtPdf import QPdfDocument
 
 TEMPLATE=Path(__file__).parent/'ui'/'frame-templates'/'gost-form3.html'
 MM=72/25.4
 
-def template_svg(template, values):
+def resolve_frame_font(config, store=None):
+    """Never silently substitute the requested production drafting font."""
+    if config.get('fontKey') and store:
+        path, _ = store.asset_path(config['fontKey'])
+        font_id = QFontDatabase.addApplicationFont(str(path))
+        if font_id < 0:
+            raise ValueError('Не удалось загрузить шрифт рамки')
+    family = next((f for f in QFontDatabase.families() if f.casefold() == 'isocpeur'), None)
+    if family:
+        return family
+    if config.get('requireFont'):
+        raise ValueError('ISOCPEUR не найден. Выберите файл шрифта в настройках рамки (Профили и шаблоны → Исполнительные схемы).')
+    return 'DejaVu Sans'  # Legacy/template validation and geometry tests only.
+
+def template_svg(template, values, font_family=None):
     if len(template)>500_000: raise ValueError('Шаблон рамки слишком большой')
     match=re.search(r'<svg\b[\s\S]*?</svg>',template,re.I)
     if not match: raise ValueError('HTML-шаблон должен содержать один SVG с рамкой')
@@ -26,12 +40,35 @@ def template_svg(template, values):
     import xml.etree.ElementTree as ET
     ET.register_namespace('', 'http://www.w3.org/2000/svg')
     tree=ET.fromstring(svg)
-    font=QFont('Arial');font.setPixelSize(100);metrics=QFontMetricsF(font)
-    for node in tree.iter():
+    family=font_family or tree.get('font-family','ISOCPEUR');tree.set('font-family',family)
+    font=QFont(family);font.setPixelSize(100);metrics=QFontMetricsF(font)
+    for node in list(tree.iter()):
         limit=node.attrib.pop('data-fit-width', None)
+        height=node.attrib.pop('data-fit-height', None)
         if limit and node.text:
-            size=float(node.get('font-size','3'));width=metrics.horizontalAdvance(node.text)/100*size
-            if width>float(limit):node.set('font-size',str(size*float(limit)/width))
+            text=node.text.strip()
+            size=float(node.get('font-size','3'))
+            if height:
+                # Keep text legible: wrap a cell before reducing to the next drawing size.
+                for candidate in (size, 2.5):
+                    lines=[];line=''
+                    for word in text.split():
+                        proposed=(line+' '+word).strip()
+                        if line and metrics.horizontalAdvance(proposed)/100*candidate>float(limit):
+                            lines.append(line);line=word
+                        else:line=proposed
+                    if line:lines.append(line)
+                    if len(lines)*candidate*1.25<=float(height):break
+                if any(metrics.horizontalAdvance(line)/100*candidate>float(limit) for line in lines) or len(lines)*candidate*1.25>float(height):
+                    raise ValueError('Текст не помещается в графу основной надписи: '+text)
+                node.set('font-size',str(candidate));node.text=None
+                first=float(node.get('y','0'))
+                for i,line in enumerate(lines):
+                    span=ET.SubElement(node,'{http://www.w3.org/2000/svg}tspan',{'x':node.get('x','0'),'y':str(first+i*candidate*1.25)})
+                    span.text=line
+            else:
+                width=metrics.horizontalAdvance(text)/100*size
+                if width>float(limit):node.set('font-size',str(size*float(limit)/width))
     return ET.tostring(tree,encoding='utf-8')
 
 def frame_page(page, config, *, sheet=1, total=1, template=None):
@@ -47,11 +84,15 @@ def frame_page(page, config, *, sheet=1, total=1, template=None):
     page.mediabox=RectangleObject([0,0,w,h]);page.cropbox=RectangleObject([0,0,w,h])
     wm,hm=w/MM,h/MM
     values={**config.get('values',{}),'Ширина':wm,'Высота':hm,'X_Надпись':wm-190,'Y_Надпись':hm-60,
-        'Y_Инвентарных_Граф':hm-90,'X_Формат':wm-5,'Y_Формат':hm-1.5,'Ширина_Рамки':wm-25,'Высота_Рамки':hm-10,'Лист':str(sheet) if total>1 else '',
+        'X_Приложение':wm-65,'Y_Инвентарных_Граф':hm-90,'X_Формат':wm-5,'Y_Формат':hm-1.5,'Ширина_Рамки':wm-25,'Высота_Рамки':hm-10,'Лист':str(sheet) if total>1 else '',
         'Листов':str(total) if sheet==1 else '', 'Формат':paper_format(wm,hm)}
-    for key in ('Шифр','Объект','Здание','Название_Схемы','Организация','Разработал','Проверил','Нормоконтроль','Дата','Стадия','АОСР','Работы','Система','Выполнение'):
+    for key in ('Шифр','Объект','Здание','Название_Схемы','Организация','Разработал','Проверил','Нормоконтроль','Дата','Стадия','АОСР','Работы','Система','Выполнение','Дата_Акта','Номер_Приложения'):
         values.setdefault(key,'')
-    svg=template_svg(template or TEMPLATE.read_text('utf-8'),values)
+    values['Приложение']=values.get('Номер_Приложения','')
+    source=template or TEMPLATE.read_text('utf-8')
+    if not values.get('АОСР'):
+        source=re.sub(r'<g id="attachment-stamp"[\s\S]*?</g>', '', source)
+    svg=template_svg(source,values,config.get('_resolvedFont') or resolve_frame_font(config))
     renderer=QSvgRenderer(QByteArray(svg))
     if not renderer.isValid(): raise ValueError('Некорректный SVG рамки')
     with tempfile.TemporaryDirectory(prefix='sid-frame-') as tmp:
@@ -74,6 +115,7 @@ def framed_reader(reader, selection, config, store):
     template=None
     if config.get('templateKey'):
         path,_=store.asset_path(config['templateKey']);template=path.read_text('utf-8-sig')
+    config = {**config, '_resolvedFont': resolve_frame_font(config, store)}
     writer=PdfWriter()
     for index in selection:
         # Import a clone before normalizing; other uses of the source remain untouched.
