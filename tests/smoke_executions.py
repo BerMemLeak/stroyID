@@ -35,7 +35,35 @@ def ready(v):
  await folderMutation('trashMove',{ent:'sys',id:s.id});if(p.systems.length!==1||p.systems[0].id!==s2.id)throw Error('Other execution was changed');const removed=S.trash.find(t=>t.ent==='sys');await folderMutation('trashRestore',{id:removed.id,restoreParents:true});if(p.systems.length!==2)throw Error('System restore failed');
  const pf=S.lib.profiles[0];p.exportProfile=pf.id;p.exportMode='profile';pf.exportSettings={order:EXPORT_BLOCKS.map(x=>x[0]),off:[],common:'once'};pf.quality='once';let c={scenario:'2',executions:p.executions.map(e=>e.id),systems:p.systems.map(s=>s.id),sections:EXPORT_BLOCKS.map(x=>x[0]),act:a.id,format:'xlsx'};
  const count=(plan,f)=>plan.volumes.flatMap(v=>v.documents).filter(f).length;let rule=assemblyPlans(p,c)[0].plan;if(count(rule,d=>d.qualityId)!==1||count(rule,d=>d.id==='adminorder-test')!==1)throw Error('Once-only profile rules failed '+JSON.stringify(rule.volumes.map(v=>({kind:v.kind,docs:v.documents.map(d=>[d.id,d.qualityId,d.qualityMode])}))));pf.exportSettings.common='each';pf.quality='each';rule=assemblyPlans(p,c)[0].plan;if(count(rule,d=>d.qualityId)!==2||count(rule,d=>d.id==='adminorder-test')!==2)throw Error('Each-execution/act profile rules failed');pf.quality='first';if(count(assemblyPlans(p,c)[0].plan,d=>d.qualityId)!==1)throw Error('First-act quality rules failed');pf.exportSettings.common='none';if(count(assemblyPlans(p,c)[0].plan,d=>d.common)!==0)throw Error('Common-none rule failed');pf.exportSettings.common='once';pf.quality='once';p.exportMode='profile';save();await desktopFlush(true);
- const results=[];for(let n=1;n<=12;n++){const c=assemblyPick(p);Object.assign(c,{scenario:String(n),executions:[e1.id,e2.id],systems:[s.id,s2.id],sections:EXPORT_BLOCKS.map(x=>x[0]),act:a.id,format:'xlsx'});if([1,4,5,9].includes(n))c.executions=[e1.id];if(n===4)c.systems=[s.id];if(n===9)c.attachments=[];else delete c.attachments;history.replaceState(null,'','#/build/'+p.id);render();const plans=assemblyPlans(p,c);const warnings=plans.flatMap(x=>frameWarnings(x.plan));if(warnings.length)throw Error('Scenario '+n+' has missing fixture signers: '+warnings.join('; '));const result=await A.assemblyRun({p:p.id});if(!result)throw Error('Scenario '+n+': '+document.querySelector('#modal-root').innerText);results.push({...result,scenario:n});closeModal();}
+
+ const assertOrder=()=>{
+  const expected=assemblyPlans(p,assemblyPick(p)).flatMap(x=>x.plan.volumes);
+  const actual=[...document.querySelectorAll('[data-assembly-volume]')];
+  if(JSON.stringify(actual.map(x=>x.dataset.assemblyVolume))!==JSON.stringify(expected.map(v=>v.key)))throw Error('Order volumes differ from exported plan');
+  const ids=actual.map(x=>[...x.querySelectorAll('[data-assembly-document]')].map(d=>d.dataset.assemblyDocument));
+  const wanted=expected.map(v=>v.documents.filter(d=>!['title','reg'].includes(d.id)).map(d=>d.id));
+  if(JSON.stringify(ids)!==JSON.stringify(wanted))throw Error('Order documents differ from exported plan');
+  const order=document.querySelector('[data-assembly-order]'),button=document.querySelector('[data-a="assemblyRun"]');
+  if(!(order.compareDocumentPosition(button)&Node.DOCUMENT_POSITION_FOLLOWING))throw Error('Order must precede export buttons');
+ };
+ Object.assign(assemblyPick(p),{scenario:'2',executions:[e1.id,e2.id],systems:[s.id,s2.id],includeCommon:true,includeOperations:true});
+ history.replaceState(null,'','#/build/'+p.id);render();assertOrder();
+ p.exportMode='custom';
+ const rememberedVolume=volumeList(p).find(v=>v.kind==='T2');S.volCfg[p.id+'|'+rememberedVolume.key]={order:blocksFor(p,rememberedVolume).map(b=>b.key).reverse()};
+ const orderBefore=JSON.stringify(S.volCfg);
+ for(const key of ['includeCommon','includeOperations']){const toggle=document.querySelector('[data-assembly="'+key+'"]');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));assertOrder();}
+ if([...document.querySelectorAll('[data-assembly-volume]')].some(x=>x.textContent.includes('Том 1.')||x.textContent.includes('Том 3.')))throw Error('Disabled volumes remain in order');
+ for(const key of ['includeCommon','includeOperations']){const toggle=document.querySelector('[data-assembly="'+key+'"]');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));assertOrder();}
+ if(JSON.stringify(S.volCfg)!==orderBefore)throw Error('Toggling volumes reset document order');
+ Object.assign(assemblyPick(p),{scenario:'4',executions:[e2.id],systems:[s2.id]});render();assertOrder();
+ const chosen=assemblyPlans(p,assemblyPick(p)).flatMap(x=>x.plan.volumes);if(chosen.some(v=>v.kind==='T2'&&!v.key.endsWith(s2.subprofiles[0].id)))throw Error('Unselected system in order');
+
+ const selectedVolume=volumeList(p).find(v=>v.s?.id===s2.id);
+ A.assemblyBlock({p:p.id,v:selectedVolume.key,k:'schemes'},{checked:false});assertOrder();
+ if(!document.querySelector('[data-assembly-excluded] [data-k="schemes"]'))throw Error('Excluded section cannot be restored');
+ A.assemblyBlock({p:p.id,v:selectedVolume.key,k:'schemes'},{checked:true});assertOrder();
+ p.exportMode='profile';
+ const results=[];for(let n=1;n<=12;n++){const c=assemblyPick(p);Object.assign(c,{scenario:String(n),executions:[e1.id,e2.id],systems:[s.id,s2.id],sections:EXPORT_BLOCKS.map(x=>x[0]),act:a.id,format:'xlsx'});if([1,4,5,9].includes(n))c.executions=[e1.id];if(n===4)c.systems=[s.id];if(n===9)c.attachments=[];else delete c.attachments;history.replaceState(null,'','#/build/'+p.id);render();if(n!==11)assertOrder();const plans=assemblyPlans(p,c);const warnings=plans.flatMap(x=>frameWarnings(x.plan));if(warnings.length)throw Error('Scenario '+n+' has missing fixture signers: '+warnings.join('; '));const result=await A.assemblyRun({p:p.id});if(!result)throw Error('Scenario '+n+': '+document.querySelector('#modal-root').innerText);results.push({...result,scenario:n});closeModal();}
  assemblyPick(p).format='csv';const csv=await A.assemblyRun({p:p.id});if(!csv)throw Error('CSV registry failed');closeModal();go('#/build/'+p.id);render();window.executionResult={ok:true,results,csv,pid:p.id};
  }catch(e){window.executionResult={error:e.stack};}})();'''.replace('ASSET',json.dumps(asset['id']))
  window.page.runJavaScript(script)
