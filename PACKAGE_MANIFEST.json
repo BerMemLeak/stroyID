@@ -1,0 +1,431 @@
+{
+  "version": "0.9.4",
+  "root": "StroyID_Desktop_0.9.4",
+  "files": [
+    {
+      "file": "CHANGES_0.8.txt",
+      "sha256": "b86d1b3627eec95aeaa573951e4875e59e86e677bc53df252d884e75ec3ea837",
+      "bytes": 2785
+    },
+    {
+      "file": "CHANGES_0.9.1.txt",
+      "sha256": "2b5ca514bd880d8f7548a73d860e6d5f7c43531143489dc4d301f815cad49300",
+      "bytes": 2288
+    },
+    {
+      "file": "CHANGES_0.9.2.txt",
+      "sha256": "e91d0825d7a8035971f94406eee2a2aff95225d290548c79c6ec9861897255ad",
+      "bytes": 2103
+    },
+    {
+      "file": "CHANGES_0.9.3.txt",
+      "sha256": "871de98c9f251544a23adcbb99811d8516860ee4283ddf9540ea8a2cf9e740c4",
+      "bytes": 3395
+    },
+    {
+      "file": "CHANGES_0.9.4.txt",
+      "sha256": "35c212d23955e9c23e271c9142609d6fe05fbcb81ad3b52d97d4ea572061ef00",
+      "bytes": 1604
+    },
+    {
+      "file": "CHANGES_0.9.txt",
+      "sha256": "188b7a9f8d0614ae155a4a599269475ed6b84dc89c2917386f2e8dbc5569ed33",
+      "bytes": 2808
+    },
+    {
+      "file": "EXECUTIONS_AND_FRAMES.txt",
+      "sha256": "5373b25cd9cf477ed437d0c37f3afe1ee8434263c0d1376ca3bd96a40c3c5af5",
+      "bytes": 1573
+    },
+    {
+      "file": "EXPORT_SCENARIOS.txt",
+      "sha256": "41354c44639437b53023c17bf667a88989262d1fd49995f62019ce226f30239c",
+      "bytes": 3084
+    },
+    {
+      "file": "FOLDER_STORAGE.txt",
+      "sha256": "1c8bf10a65e94b77dc8072463d4d31d51e19bde6a2d21161b27d3261b4542eaa",
+      "bytes": 6076
+    },
+    {
+      "file": "QUICK_START.txt",
+      "sha256": "eaabfeb560942f6ed065d3e301e60dc0764dd64e2c773d0325004539bd04a937",
+      "bytes": 3197
+    },
+    {
+      "file": "README.md",
+      "sha256": "38a1286e17c978485bacab35563938cd59f9290db64213a65b0483c534972905",
+      "bytes": 1665
+    },
+    {
+      "file": "StroyID.spec",
+      "sha256": "bf86a78ac821254426e20dfeface7b5a03a3549cd26ffd5bb72eba25cef281de",
+      "bytes": 1182
+    },
+    {
+      "file": "THIRD_PARTY.md",
+      "sha256": "3725ea0b8c7de0ceec502b66c915cc084ce96b15d00eff62fe493663b5d814d4",
+      "bytes": 910
+    },
+    {
+      "file": "USAGE.txt",
+      "sha256": "0646696e1e98f85e7dd64c6d64706cb679d640df681a1e41d1b32cf2735f25b0",
+      "bytes": 6279
+    },
+    {
+      "file": "VALIDATION.md",
+      "sha256": "074eb96700ed6a6922f00cadb70879b8bfb710077611c4721c8de0a97242ad55",
+      "bytes": 3686
+    },
+    {
+      "file": "WORD_TEMPLATES.txt",
+      "sha256": "711b37d2ac61c633465222be02d1159536997df790d60fc5c9a6873bf818775c",
+      "bytes": 7447
+    },
+    {
+      "file": "app.py",
+      "sha256": "5447c6d3094e17cb28e2820fdd2888bed171e7995f0156366c7805be7444596f",
+      "bytes": 24251
+    },
+    {
+      "file": "build_windows.bat",
+      "sha256": "5a591494702dc05fcf9a267806dfb40a7342e87d0b3e3dc51a66103d6cb6eef7",
+      "bytes": 307
+    },
+    {
+      "file": "build_windows.ps1",
+      "sha256": "0ceb9e4614c527655a698fb82af4e6aa07ceb2cc2b509fba08167f6bbc82d1a5",
+      "bytes": 7279
+    },
+    {
+      "file": "drawing_frame.py",
+      "sha256": "e1310f50c9cf9304c86224983af63f465ca58d0f0ad4a6de1c7c57287a29a820",
+      "bytes": 7348
+    },
+    {
+      "file": "export_jobs.py",
+      "sha256": "6be81d144d764118bcdbcd3613eebb6f9fc16759538800da473f498b9c3686cf",
+      "bytes": 5282
+    },
+    {
+      "file": "folder_core.py",
+      "sha256": "31689695a22057667bd38771b680dc5a34ef457e4ae391b9c36a88d2ac206ae0",
+      "bytes": 32470
+    },
+    {
+      "file": "folder_store.py",
+      "sha256": "a9277f1aad23c79ef81b50275e345609d3d38afc1bc32a74469446571d8853cd",
+      "bytes": 96
+    },
+    {
+      "file": "model_v8.py",
+      "sha256": "dd5d698b24964182e4331f1163bfdf8ce07ea93cb684159993e6753a98662bcf",
+      "bytes": 5012
+    },
+    {
+      "file": "pdf_export.py",
+      "sha256": "e1941f9ebd65a5ed9494878361e3e62c79f7b278e4f01857af2230bd4a6873af",
+      "bytes": 14636
+    },
+    {
+      "file": "release_check.py",
+      "sha256": "184307e198642e9579584828ef08489ffa45c8c082ee0ceca35b1929c924f61c",
+      "bytes": 8909
+    },
+    {
+      "file": "requirements-build.txt",
+      "sha256": "e1ffd8537aef74381c9cec6c739efe57275c0e859058932fa910975fab9088b3",
+      "bytes": 40
+    },
+    {
+      "file": "requirements.txt",
+      "sha256": "78a69ea2e5da4ade6582adfbe5df117c9df6f8ae2e10f236f42ef67a5c647283",
+      "bytes": 30
+    },
+    {
+      "file": "run_windows.bat",
+      "sha256": "539f0d50aac125dee70997d5fe251be4fe7be2afeb951f246c1f57d7ab9c865b",
+      "bytes": 167
+    },
+    {
+      "file": "storage.py",
+      "sha256": "f0634306a1ad71da1b946524e13db7dd5a087e8e2347981118ef6ce51339ae6f",
+      "bytes": 54
+    },
+    {
+      "file": "storage_speed.py",
+      "sha256": "aa033f6f68fd510d56a7b27034e44952d483d2fbf868ede5c03e67b7b82a128d",
+      "bytes": 857
+    },
+    {
+      "file": "tests/pdf_text.py",
+      "sha256": "9637aa08fa28a51c57202edd498da7ed58ba7d17472040a2a7b6bf83feb24887",
+      "bytes": 236
+    },
+    {
+      "file": "tests/smoke_executions.py",
+      "sha256": "d9275a4a04f316a7a9b3d0783cf91220f76049eb507655d5a439975198923405",
+      "bytes": 9651
+    },
+    {
+      "file": "tests/smoke_folders.py",
+      "sha256": "26fab7fb86d8e7ca434b9baa482e235a10743851cddaba78073f3f071f17f14b",
+      "bytes": 5163
+    },
+    {
+      "file": "tests/smoke_manual.py",
+      "sha256": "48cbe12d9684083bddc7c2953d749ba04acb6aeaa477ce6803b9a98e7d9bbee7",
+      "bytes": 12912
+    },
+    {
+      "file": "tests/smoke_pdf.py",
+      "sha256": "39a75587716f4b25b8aa54b63a17744b44b6a2fb26ffc9baea06a82ac9d4e206",
+      "bytes": 5962
+    },
+    {
+      "file": "tests/smoke_qt.py",
+      "sha256": "a71125a9aaba586e3999a20c988a249fda0b2dcae8da18bab8b8e6822d5f1c55",
+      "bytes": 6579
+    },
+    {
+      "file": "tests/smoke_regressions.py",
+      "sha256": "edce506250e9bfcc04078b7edd5ff8cfdd553e1edb8ab2f592fdbf7777011bf1",
+      "bytes": 8003
+    },
+    {
+      "file": "tests/smoke_save_locks.py",
+      "sha256": "19a9eac98a4845560ed868a75ed4305a5464f000d6704c4d77146476dd9e43e4",
+      "bytes": 3090
+    },
+    {
+      "file": "tests/smoke_word.py",
+      "sha256": "31f199837f44e3ad10027d3aa43f0d6b6cdb33b05bc76c9d9bbb86775fd5a0f9",
+      "bytes": 8759
+    },
+    {
+      "file": "tests/test_atomic_paths.py",
+      "sha256": "20f697d14e98a3e175766a7098de50573efd060849bede9759ae172200b458c7",
+      "bytes": 1897
+    },
+    {
+      "file": "tests/test_build_logging.py",
+      "sha256": "44c2cdb315620232a55dea02cfd49dd4eeeee9b3940fed4bb8da30d49bf12e72",
+      "bytes": 1815
+    },
+    {
+      "file": "tests/test_card_identity.py",
+      "sha256": "bff3bfc750b7b388cb4dc1ac2434ae84d8fbcb39a9a7ae3ec5428fd93ed2f65d",
+      "bytes": 3959
+    },
+    {
+      "file": "tests/test_directory_watcher.py",
+      "sha256": "2851d4896010c0661aff9db581a9d8c8f43a7e5f7598ffb3c1c49c8d581896d1",
+      "bytes": 2717
+    },
+    {
+      "file": "tests/test_drawing_frame.py",
+      "sha256": "6c1095db4793aca6966e93ff5f53c369f9572673d8873c496ff6018ece24cccb",
+      "bytes": 4046
+    },
+    {
+      "file": "tests/test_path_serialization.py",
+      "sha256": "62e25c6e582f460605baa3f5d00809badd4a2b2b7b705dd31851aebb40ca3247",
+      "bytes": 2967
+    },
+    {
+      "file": "tests/test_pdf_export.py",
+      "sha256": "4b47803681a8039f0f29d8ee1927a72c1fe614c29883d92d63b2306a7bfb62c5",
+      "bytes": 6186
+    },
+    {
+      "file": "tests/test_scope_speed.py",
+      "sha256": "8adb04520220b317b48300d3dc9a8b4f577853792306f08f982ef8bc5c7a9da1",
+      "bytes": 6326
+    },
+    {
+      "file": "tests/test_storage.py",
+      "sha256": "ea5defcdda732876d3be23728e7c4530dd8cdea7bb703289018a8a317ee8a049",
+      "bytes": 8683
+    },
+    {
+      "file": "tests/test_windows_locks.py",
+      "sha256": "6adb4bcc48aeaa7dcdd5b2241aa8db2ec949237e6f98e39891f358a8ca3b04bf",
+      "bytes": 4017
+    },
+    {
+      "file": "tests/test_word_templates.py",
+      "sha256": "84d0efe60a2fd599c92ad73560866ff40935ebeab82321c3cfd51d2a8f9abdd8",
+      "bytes": 8809
+    },
+    {
+      "file": "tests/test_workspace_v8.py",
+      "sha256": "1d546a5c804fd902df31213c13f75be9bf43e081829be58118c662247d0c9f9b",
+      "bytes": 10167
+    },
+    {
+      "file": "tmp/pdfs/assembly-example.pdf",
+      "sha256": "90cb584f0141f87b38d117fa8fbac97a8439e973efa2afeff4dd8751f105d13e",
+      "bytes": 163993
+    },
+    {
+      "file": "tmp/word/word-ui-assembly.pdf",
+      "sha256": "4977e02e95d425209eb017b0ff3eec2556bbc519377cb4b0155d29a5f6fdc574",
+      "bytes": 84027
+    },
+    {
+      "file": "tools/build_release.py",
+      "sha256": "b98a932f63b999b1e25ddb004a07eabafd545948a327d4305fe3e11cc2a20066",
+      "bytes": 5377
+    },
+    {
+      "file": "ui/assembly.js",
+      "sha256": "a7ae5810439ce0c9206e256264b09a4fbe6d869291f3b8cb4be00ec5187b5f73",
+      "bytes": 20666
+    },
+    {
+      "file": "ui/desktop.js",
+      "sha256": "83661b658e18afdb516b1874e14436a17167f4ef2c0d17e6f545b00496d953f4",
+      "bytes": 15082
+    },
+    {
+      "file": "ui/executions.js",
+      "sha256": "2838b15cb3e9dc91a7b5b57193a541733523746dc0118128eeed5e3fb4c822c7",
+      "bytes": 15723
+    },
+    {
+      "file": "ui/folders.js",
+      "sha256": "026c6ededa5fd9ddf1a63e1293c0d8e03479538a0f047102e54b36df1341590f",
+      "bytes": 15672
+    },
+    {
+      "file": "ui/frame-controls.js",
+      "sha256": "eb05495705a76ec327901aa3a8cd9f821af5a250d9c35536dbaee8cac58fab59",
+      "bytes": 7693
+    },
+    {
+      "file": "ui/frame-templates/gost-form3.html",
+      "sha256": "dd040cd2bd9906d3280c92a598fdc4308bb0551d13db15a48ab069ea6a97a5b1",
+      "bytes": 5246
+    },
+    {
+      "file": "ui/index.html",
+      "sha256": "89536552d707a1c60a9a48fa89f5eca775d404b34323af852bbd8c5c8fae6214",
+      "bytes": 338468
+    },
+    {
+      "file": "ui/manual.js",
+      "sha256": "74529508fb6884d200978f49b401266c65c1ab7c966c83cdd19bc4b32c7fd473",
+      "bytes": 19628
+    },
+    {
+      "file": "ui/pdf-export.js",
+      "sha256": "5d800dfdbe3bacd98606e9bdab997efb6200ed2acba2d1688896d6bdcd9fcbb3",
+      "bytes": 12801
+    },
+    {
+      "file": "ui/stroyid.ico",
+      "sha256": "20e74440fe8762f0345f986e48c171b969d7be3a083e54974c793a035d781029",
+      "bytes": 20103
+    },
+    {
+      "file": "ui/stroyid.svg",
+      "sha256": "5c59c07ba3cdf3ad2b47738551c96157004a5bad3d8fde38a66948215c9141ac",
+      "bytes": 407
+    },
+    {
+      "file": "ui/word-templates.css",
+      "sha256": "0b174e1142c5c0d4f7fc39ea0581e015b638cae7a5439a422399d89c8fdaf479",
+      "bytes": 1789
+    },
+    {
+      "file": "ui/word-templates.js",
+      "sha256": "398ce93fde38d32c54bcf446bb245951a9244f2b9bdff931960346ac9e084086",
+      "bytes": 21295
+    },
+    {
+      "file": "validation/0.9.4-linux/build-report.json",
+      "sha256": "7ad5631045bbcf85943fe5e24db86d905c6526f148bbc2c50539786a9329b524",
+      "bytes": 1020
+    },
+    {
+      "file": "validation/0.9.4-linux/onefile-self-test.log",
+      "sha256": "1e339f26f998be6b6dfb83f062a85b6f64c081af25cb6d482c9c3ab9a8d75c86",
+      "bytes": 2938
+    },
+    {
+      "file": "validation/0.9.4-linux/packaged-self-test.json",
+      "sha256": "8b4b7c4bb403ba5c5acfa04b5c11ed753be052aeef968e05e0ffdacc0780b51b",
+      "bytes": 541
+    },
+    {
+      "file": "validation/0.9.4-linux/pyinstaller.log",
+      "sha256": "93816f2f93bb4b2b451499b85907a9135e100aa35d00a6a3ce2c2d8210dba51a",
+      "bytes": 11749
+    },
+    {
+      "file": "validation/0.9.4-linux/qt-executions-and-frames.log",
+      "sha256": "fda110305ad1d0d351ab8b184f9817a68653636d4768dbb5d76d088cb868cc8a",
+      "bytes": 1274
+    },
+    {
+      "file": "validation/0.9.4-linux/qt-folder-workspace.log",
+      "sha256": "7fb09aacaeb2e744b57bafda3ec872cda793b066d3690400775f91e59521dd62",
+      "bytes": 981
+    },
+    {
+      "file": "validation/0.9.4-linux/qt-interface.log",
+      "sha256": "09fbda2e1ac95e082dc55b57f0d6e2bd53e121ecd3f49b9ad861590a5cf5102a",
+      "bytes": 1187
+    },
+    {
+      "file": "validation/0.9.4-linux/qt-local-regressions.log",
+      "sha256": "0672a6c545ffeeb45a06c06fec6854d95352711f8f9cd6b69826ed6656f165a3",
+      "bytes": 1321
+    },
+    {
+      "file": "validation/0.9.4-linux/qt-manual-save-and-idle.log",
+      "sha256": "a289a63fc8817e5f27eef447a0045f680b82182c6639f6bc6d220e74d89392e7",
+      "bytes": 1460
+    },
+    {
+      "file": "validation/0.9.4-linux/qt-pdf-export.log",
+      "sha256": "be7e73548e4896b33344f49335a7a221f9378db94326518690c1eec4dfcff8fe",
+      "bytes": 1152
+    },
+    {
+      "file": "validation/0.9.4-linux/qt-save-locks.log",
+      "sha256": "1b904016baaebdc12a36674bd848ae9da03a3bf83e569409930db4f5055d21c4",
+      "bytes": 1230
+    },
+    {
+      "file": "validation/0.9.4-linux/qt-word-templates.log",
+      "sha256": "fe28caa1179732d3a79fd2c9f37809238f7d57efb3161b7c060a47c2d0658a09",
+      "bytes": 1245
+    },
+    {
+      "file": "validation/0.9.4-linux/unit-tests.log",
+      "sha256": "d833aa38eb0b9b0bfc830f60b162498dd3020ecdbd7ba4baa948e3e67a0b6642",
+      "bytes": 12280
+    },
+    {
+      "file": "validation/manual-and-idle.json",
+      "sha256": "62a26b033416af15fe894b09de7d5083ca66ea666ca9ae1685da7ca8b2ae458c",
+      "bytes": 369
+    },
+    {
+      "file": "word_templates.py",
+      "sha256": "51b1d4b46c3ab6fa041695289158156ac8d8369611e8b2d37c623b93cd9b3c5d",
+      "bytes": 26550
+    },
+    {
+      "file": "workspace_store.py",
+      "sha256": "e2c78f4dc4e69dac26a24897b3e74172e6475dba84afbe2288254e88bcb4a294",
+      "bytes": 32713
+    },
+    {
+      "file": "ПРОЧИТАЙ_МЕНЯ.txt",
+      "sha256": "eaabfeb560942f6ed065d3e301e60dc0764dd64e2c773d0325004539bd04a937",
+      "bytes": 3197
+    }
+  ]
+}
