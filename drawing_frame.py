@@ -42,33 +42,56 @@ def template_svg(template, values, font_family=None):
     tree=ET.fromstring(svg)
     family=font_family or tree.get('font-family','ISOCPEUR');tree.set('font-family',family)
     font=QFont(family);font.setPixelSize(100);metrics=QFontMetricsF(font)
+    # QtSvg rounds small font sizes and ignores absolute positioning on tspans.
+    # Render each line as its own text node at a large font size, transformed
+    # back to physical mm. This preserves fractional sizes and line positions.
+    parents = {child: parent for parent in tree.iter() for child in parent}
+    ns = '{http://www.w3.org/2000/svg}'
     for node in list(tree.iter()):
-        limit=node.attrib.pop('data-fit-width', None)
-        height=node.attrib.pop('data-fit-height', None)
-        if limit and node.text:
-            text=node.text.strip()
-            size=float(node.get('font-size','3'))
+        if node.tag != ns+'text' or len(node) or not (node.text or '').strip():
+            continue
+        limit = node.attrib.pop('data-fit-width', None)
+        height = node.attrib.pop('data-fit-height', None)
+        stretch = float(node.attrib.pop('data-text-scale', '1'))
+        if not node.text:
+            continue
+        text = node.text.strip()
+        ancestor=node
+        while 'font-size' not in ancestor.attrib and ancestor in parents:
+            ancestor=parents[ancestor]
+        raw_size=ancestor.get('font-size', '3')
+        if not re.fullmatch(r'[0-9]+(?:\.[0-9]+)?', raw_size):
+            continue  # Keep user-authored SVG/CSS sizes and nested text intact.
+        size = float(raw_size)
+        lines = [text]
+        if limit:
             if height:
-                # Keep text legible: wrap a cell before reducing to the next drawing size.
-                for candidate in (size, 2.5):
+                for candidate in dict.fromkeys((size, min(size, 3.5))):
                     lines=[];line=''
                     for word in text.split():
                         proposed=(line+' '+word).strip()
-                        if line and metrics.horizontalAdvance(proposed)/100*candidate>float(limit):
+                        if line and metrics.horizontalAdvance(proposed)/100*candidate*stretch > float(limit):
                             lines.append(line);line=word
                         else:line=proposed
                     if line:lines.append(line)
-                    if len(lines)*candidate*1.25<=float(height):break
-                if any(metrics.horizontalAdvance(line)/100*candidate>float(limit) for line in lines) or len(lines)*candidate*1.25>float(height):
+                    if len(lines)*candidate*1.2 <= float(height):break
+                size=candidate
+                if any(metrics.horizontalAdvance(line)/100*size*stretch > float(limit) for line in lines) or len(lines)*size*1.2 > float(height):
                     raise ValueError('Текст не помещается в графу основной надписи: '+text)
-                node.set('font-size',str(candidate));node.text=None
-                first=float(node.get('y','0'))
-                for i,line in enumerate(lines):
-                    span=ET.SubElement(node,'{http://www.w3.org/2000/svg}tspan',{'x':node.get('x','0'),'y':str(first+i*candidate*1.25)})
-                    span.text=line
             else:
-                width=metrics.horizontalAdvance(text)/100*size
-                if width>float(limit):node.set('font-size',str(size*float(limit)/width))
+                width=metrics.horizontalAdvance(text)/100*size*stretch
+                if width>float(limit):size*=float(limit)/width
+        parent=parents[node];position=list(parent).index(node)
+        x=float(node.get('x','0'));y=float(node.get('y','0'))
+        original_transform=node.get('transform','')
+        first=y-(len(lines)-1)*size*1.2/2
+        parent.remove(node)
+        for i,line in enumerate(lines):
+            attrs={k:v for k,v in node.attrib.items() if k not in ('x','y','font-size','transform')}
+            attrs['font-size']='100'
+            attrs['transform']=f'{original_transform} translate({x} {first+i*size*1.2}) scale({size/100*stretch} {size/100})'.strip()
+            rendered=ET.Element(ns+'text',attrs);rendered.text=line
+            parent.insert(position+i,rendered)
     return ET.tostring(tree,encoding='utf-8')
 
 def frame_page(page, config, *, sheet=1, total=1, template=None):
@@ -78,14 +101,32 @@ def frame_page(page, config, *, sheet=1, total=1, template=None):
     crop=page.cropbox
     w,h=float(crop.width),float(crop.height)
     if w/MM<210-1 or h/MM<120: raise ValueError('Лист слишком мал для основной надписи 185 × 55 мм')
+    if config.get('fitContent') and page.get_contents() is not None:
+        # Preserve the original visible crop when a margin is added: otherwise
+        # previously hidden drawing content could reappear outside that crop.
+        from pypdf.generic import FloatObject
+        contents = page.get_contents()
+        clip = [FloatObject(v) for v in (crop.left, crop.bottom, w, h)]
+        contents.operations = [([], b'q'), (clip, b're'), ([], b'W'), ([], b'n'), *contents.operations, ([], b'Q')]
+        page.replace_contents(contents)
     if float(crop.left) or float(crop.bottom):
         page.add_transformation(Transformation().translate(-float(crop.left),-float(crop.bottom)))
     from pypdf.generic import RectangleObject
     page.mediabox=RectangleObject([0,0,w,h]);page.cropbox=RectangleObject([0,0,w,h])
     wm,hm=w/MM,h/MM
+    if config.get('fitContent'):
+        # PDF coordinates start at the bottom left. Keep physical output size,
+        # preserve the aspect ratio and reserve both labelled regions on every page.
+        left, bottom = 22*MM, 62*MM
+        right, top = w-7*MM, h-32*MM
+        scale = min((right-left)/w, (top-bottom)/h)
+        if scale <= 0:
+            raise ValueError('Недостаточно места для чертежа между штампами')
+        page.add_transformation(Transformation().scale(scale).translate(
+            left + (right-left-w*scale)/2, bottom + (top-bottom-h*scale)/2))
     values={**config.get('values',{}),'Ширина':wm,'Высота':hm,'X_Надпись':wm-190,'Y_Надпись':hm-60,
-        'X_Приложение':wm-65,'Y_Инвентарных_Граф':hm-90,'X_Формат':wm-5,'Y_Формат':hm-1.5,'Ширина_Рамки':wm-25,'Высота_Рамки':hm-10,'Лист':str(sheet) if total>1 else '',
-        'Листов':str(total) if sheet==1 else '', 'Формат':paper_format(wm,hm)}
+        'X_Приложение':wm-58,'Y_Инвентарных_Граф':hm-90,'X_Формат':wm-5,'Y_Формат':hm-1.5,'Ширина_Рамки':wm-25,'Высота_Рамки':hm-10,'Лист':str(sheet),
+        'Листов':str(total), 'Формат':paper_format(wm,hm)}
     for key in ('Шифр','Объект','Здание','Название_Схемы','Организация','Разработал','Проверил','Нормоконтроль','Дата','Стадия','АОСР','Работы','Система','Выполнение','Дата_Акта','Номер_Приложения'):
         values.setdefault(key,'')
     values['Приложение']=values.get('Номер_Приложения','')

@@ -61,3 +61,19 @@ htmlcov/
 # Local configuration
 *.local
 .env
+
+# Generated test screenshots and validation reports
+/validation/
+/qt-preview.png
+/test-results/
+/test-reports/
+/coverage.xml
+/junit.xml
+.coverage.*
+.mypy_cache/
+.ruff_cache/
+.nox/
+
+# Python packaging intermediates
+.eggs/
+*.egg-info/

@@ -114,3 +114,18 @@ PyInstaller packaging and an isolated executable self-test. Windows builds are
 also checked by `.github/workflows/build-windows.yml`. Linux build evidence is
 in `validation/0.9.5-linux`; Microsoft Word COM conversion requires Windows and
 is not executed by the Linux validation.
+
+
+### Drawing frames from the ВК1 reference
+
+The built-in title block follows the supplied ВК1 example. Every sheet shows
+its source PDF sheet number, total sheets and the linked act attachment block.
+Imported drawings fit between the attachment block and title block at their
+original page size. Long title fields wrap inside their cells.
+
+Set the stage and frame signers in the system settings. A drawing can override
+these signers and stage, and has separate number and name fields in its preview
+card. Both title-block and attachment dates come from the linked АОСР.
+Shared framed drawings export separately for each linked act, using that act's
+selected sheets and attachment details. Export warns about empty signer cells
+and allows returning to the cards or continuing with those cells empty.
