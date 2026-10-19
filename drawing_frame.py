@@ -114,9 +114,10 @@ def frame_page(page, config, *, sheet=1, total=1, template=None):
     for key in ('Шифр','Объект','Здание','Название_Схемы','Организация','Разработал','Проверил','Нормоконтроль','Дата','Стадия','АОСР','Работы','Система','Выполнение','Дата_Акта','Номер_Приложения'):
         values.setdefault(key,'')
     values['Приложение']=values.get('Номер_Приложения','')
+    values.setdefault('Основание_Приложения', 'К акту №' if values['АОСР'] else 'К разделу')
+    values.setdefault('Шифр_Приложения', values['АОСР'])
+    values.setdefault('Дата_Приложения', values['Дата_Акта'])
     source=template or TEMPLATE.read_text('utf-8')
-    if not values.get('АОСР'):
-        source=re.sub(r'<g id="attachment-stamp"[\s\S]*?</g>', '', source)
     svg=template_svg(source,values,config.get('_resolvedFont') or resolve_frame_font(config))
     renderer=QSvgRenderer(QByteArray(svg))
     if not renderer.isValid(): raise ValueError('Некорректный SVG рамки')

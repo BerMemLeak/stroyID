@@ -1405,7 +1405,7 @@ function actTests(a,s){return `<div class="card"><h3>Испытания из р�
 A.linkTrial=d=>{const c=ctx('act',d.id),a=c.o,s=c.s;modal('Испытания к '+a.num,`<div class="lst">${s.trials.map(t=>`<label><input class="trial-choice" type="checkbox" value="${t.id}" ${a.testLinks.includes(t.id)?'checked':''}><span>${esc(t.name)} · ${esc(t.num)}</span></label>`).join('')||'<div class="empty">В реестре системы пока нет протоколов.</div>'}</div>`,[{l:'Отмена'},{l:'Применить',c:'pri',f:()=>{if(!guard('sys:'+s.id))return false;a.testLinks=[...document.querySelectorAll('.trial-choice:checked')].map(x=>x.value);commit('Выбраны испытания к '+a.num,a)}}]);};
 function actAttachmentEntries(a,s){
  const entries=[],owned=new Set((a.schemes||[]).map(x=>x.id)),linked=new Map();
- const scheme=(record,pages,fallback)=>({name:'Исполнительная схема'+(record.num?' № '+record.num:'')+' «'+(record.name||fallback||'Название не указано')+'»',pages});
+ const scheme=(record,pages,fallback)=>({schemeId:record===s.scheme?'system':record.id,name:'Исполнительная схема'+(record.num?' № '+record.num:'')+' «'+(record.name||fallback||'Название не указано')+'»',pages});
  for(const {link,item} of linkedSchemes(a,s)){
   if(!item||owned.has(item.id))continue;
   if(!linked.has(item.id))linked.set(item.id,{item,pages:new Set()});
