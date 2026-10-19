@@ -41,7 +41,7 @@ def verify_result(result):
         assert not value['failed'], value
         assert not window.page.console_errors, window.page.console_errors
         assert store.load()['state']['meta']['name'] == 'Qt integration test'
-        assert store.load()['state']['projects'][0]['short'] == 'Сохранено после изменения'
+        assert store.load()['state']['projects'][0]['name'] == 'Сохранено после изменения'
         assert any(b['reason']=='Integration test' for b in store.list_backups())
         stage = 2
         timer.stop()
@@ -73,14 +73,21 @@ def ready(value):
     window.grab().save(str(Path(__file__).resolve().parents[1] / 'qt-preview.png'))
     script = '''(async()=>{try{
       if(S.projects.length!==0)throw Error('First launch must create an empty workspace');
-      A.newProject();document.querySelector('#np-n').value='Новый реальный объект';MB[1].f();
+      A.newProject();if(document.querySelector('#np-s'))throw Error('Project short-name field remains');document.querySelector('#np-n').value='Новый реальный объект';MB[1].f();
       const project=S.projects[0];A.newSystem({p:project.id});document.querySelector('input[name=ns][value="ВК"]').checked=true;MB[1].f();
       const system=project.systems[0];A.newAct({s:system.id});MB[1].f();await desktopFlush(true);
       const stored=await nativeCall('load');
       if(stored.state.projects[0].systems[0].acts.length!==1)throw Error('New object/system/act workflow not persisted');
-      S=seed();S.locks={};S.meta.name='Qt integration test';ensureWorkspace();save();
-      S.projects[0].short='Сохранено после изменения';save();await desktopFlush(true);
-      await desktopFlush(true);S.projects[0].short='Сохранено после изменения';save();await desktopFlush(true);
+      S=seed();S.projects[0].short='Legacy navigation alias';S.locks={};S.meta.name='Qt integration test';ensureWorkspace();
+      if(S.projects.some(p=>'short' in p))throw Error('Legacy project alias remains');
+      history.replaceState(null,'','#/p/'+S.projects[0].id+'/info');render();
+      if(document.querySelector('[data-ent="proj"][data-f="short"]'))throw Error('Project short-name editor remains');
+      if(document.querySelector('#tree a[href="#/p/'+S.projects[0].id+'"] .lb').textContent!==S.projects[0].name)throw Error('Tree does not use full project name');
+      const drawing=resourceList(S.projects[0].systems[0])[0];
+      if(drawingContext(S.projects[0],S.projects[0].systems[0],drawing,{}).values.Здание!==S.projects[0].name)throw Error('Drawing frame does not use full project name');
+      save();
+      S.projects[0].name='Сохранено после изменения';save();await desktopFlush(true);
+      await desktopFlush(true);S.projects[0].name='Сохранено после изменения';save();await desktopFlush(true);
       await backup('Integration test');
       // Exercise the actual polling function with a local edit arriving before its reply.
       const realCall=nativeCall;

@@ -54,7 +54,7 @@ def receive(value):
  try:
   assert not window.page.console_errors,window.page.console_errors
   state=store.load()['state'];q=state['lib']['quality'][0];assert len(state['lib']['quality'])==1
-  assert store.asset_path(q['fileKey'])[0].is_file();assert not list((store.root/state['projects'][0]['short']).glob('**/Материалы/**/*.pdf'))
+  assert store.asset_path(q['fileKey'])[0].is_file();assert not list((store.root/state['projects'][0]['name']).glob('**/Материалы/**/*.pdf'))
   screenshot=Path('validation/workflow-ui.png');screenshot.parent.mkdir(exist_ok=True);window.grab().save(str(screenshot.resolve()))
   stage=2;timer.stop();print('PASS: shared certificate create/edit/unlink/reload, filtered multi-selection, auto-save/navigation, cancelled scheme, owned scheme links, execution dates, drag ordering, export controls/company isolation, HTML templates and FIO');window.close()
  except Exception:fail(traceback.format_exc())

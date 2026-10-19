@@ -338,7 +338,7 @@ class Store(CardHistory,FastFiles,CoreStore):
    p=next(p for p in state['projects'] if p['id']==ctx['pid']);item={'execution':item,'systems':[s for s in p['systems'] if s.get('executionId')==obj['id']]};p['systems']=[s for s in p['systems'] if s.get('executionId')!=obj['id']]
   project=next((p for p in state['projects'] if p['id']==ctx.get('pid')),None)
   exe=next((e for e in (project or {}).get('executions',[]) if e['id']==ctx.get('eid')),None)
-  where=' / '.join(x for x in ((project or {}).get('short') or (project or {}).get('name'),(exe or {}).get('name'),obj.get('code') if params['ent']=='sys' else None) if x) or 'Справочник'
+  where=' / '.join(x for x in ((project or {}).get('name'),(exe or {}).get('name'),obj.get('code') if params['ent']=='sys' else None) if x) or 'Справочник'
   name=(item.get('execution') or item).get('name') or item.get('num') or item.get('file') or 'Документ'
   arr.remove(obj if ent!='row' else item)
   ident='trash-'+uuid.uuid4().hex

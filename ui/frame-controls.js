@@ -17,7 +17,7 @@ function drawingContext(p, s, item, vol, owner = null) {
   const ids = a ? [...new Set([...a.schemeLinks.map(l => l.id), ...a.schemes.map(x => x.id)])] : [];
   const position = ids.indexOf(item.id);
   return {templateKey: record.frameTemplate?.fileKey || record.frameTemplateKey || '', values: {
-    Шифр: designation, Объект: p.name || '', Здание: p.short || '',
+    Шифр: designation, Объект: p.name || '', Здание: p.name || '',
     Название_Схемы: [record.num, record.name || item.name].filter(Boolean).join(' · '),
     Организация: org(per?.orgId)?.short || p.genContractor || '',
     Разработал: signer('developed'), Проверил: signer('checked'), Нормоконтроль: signer('controlled'),
