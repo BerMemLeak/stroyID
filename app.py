@@ -53,7 +53,8 @@ class Bridge(QObject):
         if raw:
             response=json.loads(raw);value=response.get('value')
             if not isinstance(value,dict) or 'revision' not in value or value.get('preview'):return
-        paths={str(self.store.root),str(self.store.events_dir)}
+        paths={str(self.store.root),str(self.store.service),str(self.store.events_dir),str(self.store.blobs),str(self.store.service/'Удалённые версии')}
+        paths.update(str(p) for p in getattr(self.store, '_history_waiting_assets', []))
         # Observe file metadata, but register directory handles only.
         # A watcher must not hold the files which atomic saves replace.
         for key,record in list(self.store.latest.items()):
@@ -71,9 +72,10 @@ class Bridge(QObject):
             while parent.is_relative_to(self.store.root) and parent!=self.store.root:
                 if parent.is_relative_to(self.store.service):break
                 paths.add(str(parent));parent=parent.parent
+        observed=set(paths)
         paths={p for p in paths if Path(p).exists()}
         directories={p if Path(p).is_dir() else str(Path(p).parent) for p in paths}
-        self.observedPaths=paths|directories
+        self.observedPaths=observed|directories
         current=set(self.watcher.files()+self.watcher.directories())
         if current-directories:self.watcher.removePaths(list(current-directories))
         if directories-current:self.watcher.addPaths(list(directories-current))
@@ -102,7 +104,11 @@ class Bridge(QObject):
             elif operation == 'validate':
                 value = validate_state(params['state'])
             elif operation == 'save':
-                value = self.store.save(params['state'],params['revision'],params.get('baseState'),params.get('baseHeads'))
+                self.store._history_user = params.get('user', '')
+                try:
+                    value = self.store.save(params['state'],params['revision'],params.get('baseState'),params.get('baseHeads'))
+                finally:
+                    self.store._history_user = ''
             elif operation == 'pickPdf':
                 name, _ = QFileDialog.getOpenFileName(self.window, 'Выберите исходный PDF', '', 'PDF (*.pdf)')
                 if not name:
@@ -124,6 +130,30 @@ class Bridge(QObject):
                 value = self.store.repair(params['key'],params['data'])
             elif operation == 'resolveConflict':
                 value = self.store.resolve(params['key'],params['version'])
+            elif operation == 'cardHistoryIndex':
+                value = self.store.card_history_index()
+            elif operation == 'openHistoryAsset':
+                from folder_core import atomic, safe
+                source, filename = self.store.history_asset(params['key'], params['version'], params['sha'])
+                cache = Path(tempfile.gettempdir()) / 'StroyID-history' / hashlib.sha256(str(self.store.root).encode()).hexdigest()[:16]
+                target = cache / params['sha'] / safe(filename)
+                atomic(target, source.read_bytes())
+                value = QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
+                if not value:raise ValueError('Не удалось открыть файл. Назначьте приложение для этого формата.')
+            elif operation == 'cardHistory':
+                value = self.store.card_history(params['key'])
+            elif operation == 'cardHistoryVersion':
+                value = self.store.card_version(params['key'], params['version'])
+            elif operation == 'cardHistoryRestore':
+                value = self.store.restore_card_version(params['key'], params['version'],
+                    heads=params.get('heads'), resolve=params.get('resolve', False), user=params.get('user', ''))
+            elif operation == 'cardHistoryDelete':
+                self.store._history_user = params.get('user', '')
+                try:
+                    value = self.store.delete_card_versions(params['key'], params['versions'],
+                        heads=params.get('heads'), preview=params.get('preview', False))
+                finally:
+                    self.store._history_user = ''
             elif operation == 'cardData':
                 value = self.store.latest.get(params['key'])
             elif operation == 'pickAny':
