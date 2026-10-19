@@ -14,14 +14,20 @@ function drawingContext(p, s, item, vol, owner = null) {
   const cipher = record.frameCipher || s.cipher || p.cipher || '';
   const code = s.code || '';
   const designation = record.frameCipher || s.cipher || (cipher && code && !cipher.endsWith('-' + code) && cipher !== code ? cipher + '-' + code : cipher || code);
-  const ids = a ? [...new Set([...a.schemeLinks.map(l => l.id), ...a.schemes.map(x => x.id)])] : [];
-  const position = ids.indexOf(item.id);
+  // Use the same attachment list as the printed AOSR, including other documents.
+  const position = a ? actAttachmentEntries(a, s).findIndex(x => x.schemeId === item.id) :
+    resourceList(s).filter(x => x.kind !== 'act' && (x.record.fileKey || x.record.file) &&
+      !s.acts.some(act => act.schemeLinks.some(l => l.id === x.id))).findIndex(x => x.id === item.id);
+  const date = a?.date || (!a ? s.sectionDate : '') || '';
+  const stampDate = /^\d{4}-\d{2}-\d{2}$/.test(date) ? '"' + date.slice(8) + '" ' + date.slice(5, 7) + '.' + date.slice(0, 4) + 'г.' : fmtD(date);
   return {templateKey: record.frameTemplate?.fileKey || record.frameTemplateKey || '', values: {
     Шифр: designation, Объект: p.name || '', Здание: p.name || '',
     Название_Схемы: [record.num, record.name || item.name].filter(Boolean).join(' · '),
     Организация: org(per?.orgId)?.short || p.genContractor || '',
     Разработал: signer('developed'), Проверил: signer('checked'), Нормоконтроль: signer('controlled'),
-    Дата: fmtD(a?.date || ''), Дата_Акта: fmtD(a?.date || ''),
+    Дата: fmtD(date), Дата_Акта: fmtD(date), Дата_Приложения: stampDate,
+    Основание_Приложения: a ? 'К акту №' : 'К разделу',
+    Шифр_Приложения: a?.num || s.cipher || '',
     Номер_Приложения: String(record.appNo || (position >= 0 ? position + 1 : '')),
     Стадия: record.stage ?? s.stage ?? p.stage ?? '', АОСР: a?.num || '',
     Работы: a ? [a.works, a.workQty, a.workUnit].filter(Boolean).join(' · ') : '',
@@ -37,7 +43,7 @@ function frameSignerControls(s, item = null) {
     const selected = person(s.frameSigners?.[key]);
     return `<p class="small">${label}: ${esc(selected ? shortFio(selected.fio || selected.fioShort || '') : 'Не выбран в настройках системы')}</p>`;
   }).join('') : '';
-  return `<div class="card"><h3>${item ? 'Разработчик схемы' : 'Подписанты рамок системы'}</h3><p class="small mut">${item ? 'Выберите человека, который выполнил чертёж. Проверяющий и нормоконтроль берутся из настроек системы.' : 'Проверяющий и нормоконтроль применяются ко всем схемам системы. Разработчик выбирается отдельно в каждой схеме.'} Дата берётся из связанного АОСР; место для подписи остаётся пустым.</p><div class="g2">${roles.map(([key,label]) => `<label>${label}<select data-frame-signer="${key}" data-s="${s.id}" ${item ? `data-x="${item.id}"` : ''}><option value="" ${!settings?.[key] ? 'selected' : ''}>Выберите подписанта</option>${S.lib.people.map(p=>`<option value="${esc(p.id)}" ${settings?.[key]===p.id?'selected':''}>${esc(p.fio || p.fioShort)}</option>`).join('')}</select></label>`).join('')}</div>${inherited}${item ? `<a href="#/s/${s.id}/params" data-mb="-1">Настроить подписантов системы</a>` : ''}</div>`;
+  return `<div class="card"><h3>${item ? 'Разработчик схемы' : 'Подписанты рамок системы'}</h3><p class="small mut">${item ? 'Выберите человека, который выполнил чертёж. Проверяющий и нормоконтроль берутся из настроек системы.' : 'Проверяющий и нормоконтроль применяются ко всем схемам системы. Разработчик выбирается отдельно в каждой схеме.'} Дата берётся из связанного АОСР или поля «Дата раздела»; место для подписи остаётся пустым.</p><div class="g2">${roles.map(([key,label]) => `<label>${label}<select data-frame-signer="${key}" data-s="${s.id}" ${item ? `data-x="${item.id}"` : ''}><option value="" ${!settings?.[key] ? 'selected' : ''}>Выберите подписанта</option>${S.lib.people.map(p=>`<option value="${esc(p.id)}" ${settings?.[key]===p.id?'selected':''}>${esc(p.fio || p.fioShort)}</option>`).join('')}</select></label>`).join('')}</div>${inherited}${item ? `<a href="#/s/${s.id}/params" data-mb="-1">Настроить подписантов системы</a>` : ''}</div>`;
 }
 document.addEventListener('change', event => {
   const el = event.target;
@@ -53,7 +59,7 @@ V.s = r => {
   const box = document.createElement('div');
   box.innerHTML = frameSystemView(r);
   const s = getEnt('sys', r[1]);
-  if (r[2] === 'params' && s) box.querySelector('.page')?.insertAdjacentHTML('beforeend', `<div class="card"><h3>Стадия документации</h3>${F('Стадия в рамке', 'sys', s.id, 'stage', s.stage ?? '')}</div>` + frameSignerControls(s));
+  if (r[2] === 'params' && s) box.querySelector('.page')?.insertAdjacentHTML('beforeend', `<div class="card"><h3>Стадия документации</h3>${F('Стадия в рамке', 'sys', s.id, 'stage', s.stage ?? '')}${F('Дата раздела', 'sys', s.id, 'sectionDate', s.sectionDate || '', {type:'date'})}</div>` + frameSignerControls(s));
   return box.innerHTML;
 };
 
@@ -122,7 +128,7 @@ function drawingWarnings(plan) {
  return [...warnings];
 }
 function drawingRecord(s,id){return resourceList(s).find(x=>x.id===id);}
-function drawingPanel(p,s,item){const r=item.record,acts=s.acts.filter(a=>a.schemes.some(x=>x.id===item.id)||a.schemeLinks.some(l=>l.id===item.id));return `<div class="card"><h3>Реквизиты схемы</h3><label>Шифр в штампе (пусто — из системы)<input data-frame-field="frameCipher" data-s="${s.id}" data-x="${item.id}" value="${esc(r.frameCipher || '')}"></label><label>Номер схемы<input data-frame-field="num" data-s="${s.id}" data-x="${item.id}" value="${esc(r.num || '')}"></label><label>Название схемы<input data-frame-field="name" data-s="${s.id}" data-x="${item.id}" value="${esc(r.name || item.name)}"></label><label>Стадия (пусто — из системы)<input data-frame-field="stage" data-s="${s.id}" data-x="${item.id}" value="${esc(r.stage ?? '')}"></label></div>`+frameSignerControls(s,item)+`<div class="card"><h3>Рамка исполнительной схемы</h3><p><b>${esc(item.name)}</b> · ${esc(r.file||'PDF не загружен')}</p><p class="small mut">ГОСТ Р 21.101-2026: форма 3, основная надпись 185 × 55 мм; поле подшивки 20 мм, остальные поля 5 мм. Формат и ориентация каждого листа берутся из исходного PDF. Исходный файл сохраняется.</p><label class="row"><input type="checkbox" data-a="drawingToggle" data-s="${s.id}" data-x="${item.id}" ${r.frameEnabled?'checked':''}> Добавлять рамку при сборке PDF</label><p class="small mut">Если рамка уже есть на чертеже, оставьте эту настройку выключенной. Рамка накладывается поверх исходного листа без проверки существующего оформления. Масштаб и положение чертежа сохраняются.</p><div class="row mt">${B('Сохранить HTML-шаблон ГОСТ','drawingTemplateSave')}${B('Подгрузить свой HTML-шаблон','drawingTemplatePick',`data-s="${s.id}" data-x="${item.id}"`)}${(r.frameTemplate?.fileKey||r.frameTemplateKey)?B('Вернуть шаблон ГОСТ','drawingTemplateReset',`data-s="${s.id}" data-x="${item.id}"`):''}</div><p class="small mut">${esc(r.frameTemplateName||'Встроенный шаблон ГОСТ')}. Теги: {{Объект}}, {{Шифр}}, {{Система}}, {{АОСР}}, {{Работы}}, {{Выполнение}}, {{Лист}}, {{Листов}}. Изменяйте текст и оформление SVG внутри HTML.</p><div class="row mt"><label>Лист <input id="drawing-page" type="number" min="1" max="${r.pages||1}" value="1" style="width:70px"></label><label>Связанный АОСР <select id="drawing-act" data-s="${s.id}" data-x="${item.id}"><option value="">Автоматически по выполнению</option>${acts.map(a=>`<option value="${a.id}" ${a.id===r.frameActId?'selected':''}>${esc(a.num)}</option>`).join('')}</select></label>${B('Показать настоящий лист','drawingPreview',`data-s="${s.id}" data-x="${item.id}"`,'pri')}</div><div id="drawing-result" class="mt"><p class="small mut">Нажмите «Показать настоящий лист», чтобы проверить рамку на загруженном чертеже.</p></div></div>`;}
+function drawingPanel(p,s,item){const r=item.record,acts=s.acts.filter(a=>a.schemes.some(x=>x.id===item.id)||a.schemeLinks.some(l=>l.id===item.id));return `<div class="card"><h3>Реквизиты схемы</h3><label>Шифр в штампе (пусто — из системы)<input data-frame-field="frameCipher" data-s="${s.id}" data-x="${item.id}" value="${esc(r.frameCipher || '')}"></label><label>Номер приложения (пусто — автоматически)<input type="number" min="1" step="1" data-frame-field="appNo" data-s="${s.id}" data-x="${item.id}" value="${esc(r.appNo || '')}" placeholder="Автоматически"></label><label>Номер схемы<input data-frame-field="num" data-s="${s.id}" data-x="${item.id}" value="${esc(r.num || '')}"></label><label>Название схемы<input data-frame-field="name" data-s="${s.id}" data-x="${item.id}" value="${esc(r.name || item.name)}"></label><label>Стадия (пусто — из системы)<input data-frame-field="stage" data-s="${s.id}" data-x="${item.id}" value="${esc(r.stage ?? '')}"></label></div>`+frameSignerControls(s,item)+`<div class="card"><h3>Рамка исполнительной схемы</h3><p><b>${esc(item.name)}</b> · ${esc(r.file||'PDF не загружен')}</p><p class="small mut">ГОСТ Р 21.101-2026: форма 3, основная надпись 185 × 55 мм; поле подшивки 20 мм, остальные поля 5 мм. Формат и ориентация каждого листа берутся из исходного PDF. Исходный файл сохраняется.</p><label class="row"><input type="checkbox" data-a="drawingToggle" data-s="${s.id}" data-x="${item.id}" ${r.frameEnabled?'checked':''}> Добавлять рамку и блок приложения при сборке PDF</label><p class="small mut">Если рамка уже есть на чертеже, оставьте эту настройку выключенной. Рамка накладывается поверх исходного листа без проверки существующего оформления. Масштаб и положение чертежа сохраняются.</p><div class="row mt">${B('Сохранить HTML-шаблон ГОСТ','drawingTemplateSave')}${B('Подгрузить свой HTML-шаблон','drawingTemplatePick',`data-s="${s.id}" data-x="${item.id}"`)}${(r.frameTemplate?.fileKey||r.frameTemplateKey)?B('Вернуть шаблон ГОСТ','drawingTemplateReset',`data-s="${s.id}" data-x="${item.id}"`):''}</div><p class="small mut">${esc(r.frameTemplateName||'Встроенный шаблон ГОСТ')}. Теги: {{Объект}}, {{Шифр}}, {{Система}}, {{АОСР}}, {{Работы}}, {{Выполнение}}, {{Лист}}, {{Листов}}. Изменяйте текст и оформление SVG внутри HTML.</p><div class="row mt"><label>Лист <input id="drawing-page" type="number" min="1" max="${r.pages||1}" value="1" style="width:70px"></label><label>Связанный АОСР <select id="drawing-act" data-s="${s.id}" data-x="${item.id}"><option value="">Автоматически по выполнению</option>${acts.map(a=>`<option value="${a.id}" ${a.id===r.frameActId?'selected':''}>${esc(a.num)}</option>`).join('')}</select></label>${B('Показать настоящий лист','drawingPreview',`data-s="${s.id}" data-x="${item.id}"`,'pri')}</div><div id="drawing-result" class="mt"><p class="small mut">Нажмите «Показать настоящий лист», чтобы проверить рамку на загруженном чертеже.</p></div></div>`;}
 A.drawingToggle=(d,el)=>{if(!guard()){el.checked=!el.checked;return;}drawingRecord(getEnt('sys',d.s),d.x).record.frameEnabled=el.checked;commit('Изменена рамка схемы');};
 A.drawingEdit=d=>{const {p,o:s}=ctx('sys',d.s),item=drawingRecord(s,d.x);modal('Рамка и предпросмотр',drawingPanel(p,s,item),[{l:'Готово',c:'pri'}],'wide');};
 A.drawingTemplateSave=async()=>{try{await nativeCall('saveFrameTemplate');}catch(e){toast(e.message);}};
@@ -141,7 +147,8 @@ document.addEventListener('change', event => {
   if (!el.dataset.frameField || !guard()) return;
   const r = drawingRecord(getEnt('sys', el.dataset.s), el.dataset.x).record;
   const value = el.value.trim();
-  if (['stage','frameCipher'].includes(el.dataset.frameField) && !value) delete r[el.dataset.frameField];
+  if (el.dataset.frameField === 'appNo' && value && (!Number.isInteger(Number(value)) || Number(value) < 1)) { el.value = r.appNo || ''; toast('Введите целый положительный номер приложения'); return; }
+  if (['stage','frameCipher','appNo'].includes(el.dataset.frameField) && !value) delete r[el.dataset.frameField];
   else r[el.dataset.frameField] = value;
   commit('Изменены реквизиты рамки');
 });

@@ -80,6 +80,18 @@ class DrawingFrameTests(unittest.TestCase):
    self.assertTrue(all(size>=3.4*MM for _,_,size in spans),spans)
    self.assertTrue(all(5*MM<y<20*MM for _,y,_ in spans),spans)
 
+ def test_section_attachment_on_every_selected_sheet(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   store=Store(Path(tmp)/'db');reader=PdfReader(io.BytesIO(self.source()))
+   cfg={'values':{'Основание_Приложения':'К разделу','Шифр_Приложения':'SECTION-042',
+      'Номер_Приложения':'7','Дата_Приложения':'"15" 09.2026г.'}}
+   result=framed_reader(reader,[0,1,2],cfg,store)
+   for page in result.pages:
+    text=''.join(page.extract_text().split())
+    self.assertIn('Кразделу',text);self.assertIn('SECTION-042',text)
+    self.assertIn('"15"09.2026г.',text);self.assertIn('Приложение№',text)
+   self.assertNotIn('SECTION-042',reader.pages[0].extract_text())
+
  def test_bad_custom_template_rejected(self):
   with self.assertRaises(ValueError):template_svg('<svg><script>alert(1)</script></svg>',{})
   with self.assertRaises(ValueError):template_svg('<svg><text>{{Неизвестный}}</text></svg>',{})

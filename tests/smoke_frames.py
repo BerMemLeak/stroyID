@@ -20,7 +20,7 @@ def ready(value):
  const assert=(x,m)=>{if(!x)throw Error(m)};
  S=seed();S.projects=S.projects.slice(0,1);S.locks={};IX=null;ensureWorkspace();
  const p=S.projects[0],s=p.systems[0],a=s.acts[0],people=S.lib.people;
- s.stage='Р';s.scheme.num='ВК1-1';s.scheme.name='Устройство водоснабжения';s.code='ВК1';s.name='Система водоснабжения';p.cipher='2026-00000-01-0';s.cipher='';
+ s.sectionDate='2026-09-15';s.stage='Р';s.scheme.num='ВК1-1';s.scheme.name='Устройство водоснабжения';s.code='ВК1';s.name='Система водоснабжения';p.cipher='2026-00000-01-0';s.cipher='';
  Object.assign(s.scheme,{file:'certificate.pdf',fileKey:ASSET,pages:3,frameEnabled:true,rd:''});
  Object.assign(a,{num:'АОСР-042',date:'2026-10-18',schemeLinks:[{id:'system',from:1,to:3}]});
  s.acts=[a];const v=volumeList(p).find(v=>v.s?.id===s.id),item=drawingRecord(s,'system');
@@ -30,6 +30,7 @@ def ready(value):
  choose('[data-frame-signer="checked"]',people[1].id);choose('[data-frame-signer="controlled"]',people[2].id);
  s.frameSigners.developed=people[1].id;
  s.scheme.frameSigners={checked:people[0].id,controlled:''}; // Legacy overrides must not hide system settings.
+ assert(document.querySelector('[data-f="sectionDate"]').value==='2026-09-15','Section date field');
  const old=A.drawingPreview;A.drawingPreview=()=>{};A.drawingEdit({s:s.id,x:'system'});A.drawingPreview=old;
  assert(document.querySelectorAll('.dlg [data-frame-signer]').length===1,'Only developer belongs in scheme editor');
  assert(document.querySelector('.dlg [data-frame-signer="developed"]').value==='','Developer must start empty');
@@ -38,6 +39,10 @@ def ready(value):
  choose('.dlg [data-frame-signer="developed"]',people[0].id);
  cfg=drawingContext(p,s,item,v);assert(cfg.values.Разработал===shortFio(people[0].fio),'Explicit drawing developer');
  assert(cfg.values.Шифр==='2026-00000-01-0-ВК1'&&cfg.values.Система===s.name&&cfg.values.Стадия==='Р','Stamp field mapping');assert(cfg.values.Дата==='18.10.2026','Signature date from act');assert(cfg.values.АОСР===a.num&&cfg.values.Номер_Приложения==='1','Full source act resolution');
+ choose('.dlg [data-frame-field="appNo"]','7');assert(drawingContext(p,s,item,v).values.Номер_Приложения==='7','Manual attachment override');
+ choose('.dlg [data-frame-field="appNo"]','');assert(drawingContext(p,s,item,v).values.Номер_Приложения==='1','Clear override restores automatic number');
+ const originalEntries=actAttachmentEntries;actAttachmentEntries=(act,section)=>[{name:'Другой документ',pages:1},...originalEntries(act,section)];
+ assert(drawingContext(p,s,item,v).values.Номер_Приложения==='2','Number must use full AOSR attachment list');actAttachmentEntries=originalEntries;
  choose('.dlg [data-frame-signer="developed"]','');assert(drawingContext(p,s,item,v).values.Разработал==='','Cleared developer must remain empty');
  choose('.dlg [data-frame-signer="developed"]',people[0].id);closeModal();
  s.scheme.rd='Рабочая документация «Система водоснабжения», шифр ДРУГОЙ';
@@ -54,6 +59,10 @@ def ready(value):
  assert(drawingContext(p,s,item,v).values.АОСР===second.num,'Explicit act selection');assert(drawingContext(p,s,item,v,a).values.АОСР===a.num,'Export owner must win');
  const extra={...ROWT.scheme(a),id:'unlinked',name:'Отдельный чертёж',file:'certificate.pdf',fileKey:ASSET,pages:3,frameEnabled:true};s.sketches.push(extra);assert(drawingContext(p,s,drawingRecord(s,extra.id),v).values.АОСР==='','Unlinked drawing inherited an unrelated act');
 
+ const sectionCfg=drawingContext(p,s,drawingRecord(s,extra.id),v);
+ assert(sectionCfg.values.Основание_Приложения==='К разделу'&&sectionCfg.values.Шифр_Приложения===s.cipher,'Section cipher mapping');
+ assert(sectionCfg.values.Дата==='15.09.2026'&&sectionCfg.values.Дата_Приложения==='"15" 09.2026г.'&&sectionCfg.values.Номер_Приложения==='1','Section date and automatic number');
+ assert(drawingContext(p,s,item,v,a).values.Дата_Приложения==='"18" 10.2026г.','Act date formatting');
  const plan=pdfPlan(p,[v]);const framed=plan.volumes.flatMap(v=>v.documents).filter(d=>d.id.startsWith('framed:system:'));
  assert(framed.length===2,'Shared drawing needs exactly one copy per act: '+framed.length);
  assert(framed.some(d=>d.frame.values.АОСР===a.num&&d.frame.values.Дата==='18.10.2026'),'First act stamp');
@@ -64,7 +73,7 @@ def ready(value):
  s.acts=[a];delete s.scheme.frameActId;p.exportMode='custom';p.exportProfile='';
  const docs=assemblyActPlan(p,a.id,['schemes']).volumes.flatMap(v=>v.documents).filter(d=>d.id.startsWith('framed:system:'));assert(docs.length===1&&docs.every(d=>d.frame.values.АОСР===a.num),'Assembly lost attachment context');
  p.exportIssuer=S.lib.orgs[0].id;assert(drawingContext(p,s,item,v).values.Организация===(S.lib.orgs[0].full||S.lib.orgs[0].short),'Export company');
- save();await desktopFlush();const loaded=(await nativeCall('load')).state.projects[0].systems.find(x=>x.id===s.id);assert(loaded.frameSigners.checked===people[1].id&&loaded.scheme.frameSigners.developed===people[0].id&&loaded.stage==='Р'&&loaded.scheme.num==='ВК1-1','Frame settings lost on disk');
+ save();await desktopFlush();const loaded=(await nativeCall('load')).state.projects[0].systems.find(x=>x.id===s.id);assert(loaded.sectionDate==='2026-09-15'&&loaded.frameSigners.checked===people[1].id&&loaded.scheme.frameSigners.developed===people[0].id&&loaded.stage==='Р'&&loaded.scheme.num==='ВК1-1','Frame settings lost on disk');
  const result=await nativeCall('previewDrawing',{key:ASSET,page:2,frame:drawingContext(p,s,item,v,a)});assert(result.pages===3&&result.image.startsWith('data:image/png'),'Native multi-page preview');
  const el={checked:false};A.drawingToggle({s:s.id,x:'system'},el);assert(!pdfSources(p,v).get('ss'+s.id).frame,'Frame toggle ignored');
  
