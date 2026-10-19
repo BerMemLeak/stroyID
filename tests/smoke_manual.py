@@ -97,7 +97,7 @@ def receive(value):
  try:
   assert not window.page.console_errors,window.page.console_errors
   assert not window.windowIcon().isNull()
-  current=store.load()['state'];p=current['projects'][0];assert p['systems'][0]['acts'][0]['works']=='Сохранено кнопкой';assert len(current['lib']['base'])==1;assert not list((store.root/'Объект два').rglob('*.pdf'));assert len(list((store.root/'Справочники').rglob('*.pdf')))==1
+  current=store.load()['state'];p=current['projects'][0];assert p['systems'][0]['acts'][0]['works']=='Сохранено кнопкой';assert len(current['lib']['base'])==1;assert not list((store.root/'Объект два').rglob('*.pdf'));assert len([f for f in (store.root/'Справочники').rglob('*.pdf') if 'История версий' not in f.parts])==1
   stage=2;timer.stop();QTimer.singleShot(800,settled)
  except Exception:fail(traceback.format_exc())
 

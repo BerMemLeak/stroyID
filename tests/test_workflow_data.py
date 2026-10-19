@@ -21,7 +21,8 @@ class WorkflowDataTests(unittest.TestCase):
    p['materials']=[{'id':'m1','name':'Труба 20','docs':[],'docIds':['q1']},{'id':'m2','name':'Труба 40','docs':[],'docIds':['q1']}]
    result=store.save(s,0);loaded=result['state'];doc=loaded['lib']['quality'][0]
    self.assertTrue(doc['fileKey'].startswith('Справочники/Документы качества/'))
-   self.assertEqual(len(list((store.root/'Справочники').rglob('*.pdf'))),1)
+   self.assertEqual(len([f for f in (store.root/'Справочники').rglob('*.pdf') if 'История версий' not in f.parts]),1)
+   self.assertEqual(len([f for f in (store.root/'Справочники').rglob('*.pdf') if 'История версий' in f.parts]),1)
    self.assertFalse(list((store.root/p['short']).rglob('*.pdf')))
    loaded['projects'][0]['materials'][0]['docIds']=[];doc['num']='78';result=store.save(loaded,result['revision'])
    self.assertEqual(result['state']['projects'][0]['materials'][1]['docIds'],['q1'])

@@ -5,8 +5,9 @@ from folder_core import Store as CoreStore, LABELS, CHILDREN, walk, atomic, enco
 from model_v8 import migrate
 
 from storage_speed import FastFiles
+from card_history import CardHistory
 
-class Store(FastFiles,CoreStore):
+class Store(CardHistory,FastFiles,CoreStore):
  def __init__(self,root):
   self._hash_cache={};self._json_cache={};self.metrics={'hashed_files':0,'parsed_json':0,'loads':0,'saves':0}
   root=Path(root).resolve();service=root/'_Служебное';service.mkdir(parents=True,exist_ok=True)
@@ -116,7 +117,8 @@ class Store(FastFiles,CoreStore):
     key=field+':'+ident;r={'kind':field,'parent':parent,'field':field,'data':v,'position':100000};path=folder/('Материал.json' if field=='base' else 'Карточка.json')
     if key not in self.latest:self._emit(key,r,[],path.relative_to(self.root))
  def _materialize(self):
-  saved_invalid=self.invalid;self.invalid=self.invalid|set(self.missing)
+  self._sync_history()
+  saved_invalid=self.invalid;self.invalid=self.invalid|set(self.missing)|getattr(self,'_history_pending_keys',set())
   try:
    # Implement projections without recreating generic system/execution containers.
    blocked=self.invalid|{c['key'] for c in self.conflicts}
@@ -142,6 +144,7 @@ class Store(FastFiles,CoreStore):
    ledger=encode(self.known)
    if not self.ledger_path.exists() or self.ledger_path.read_bytes()!=ledger:atomic(self.ledger_path,ledger)
   finally:self.invalid=saved_invalid
+  if getattr(self,'_history_pruned',set()):self._collect_history()
  def load(self):
   self.metrics['loads']+=1
   result=super().load()
@@ -221,7 +224,7 @@ class Store(FastFiles,CoreStore):
   original_records=__import__('folder_core').flatten(validate_state(state))
   state=migrate(state)
   if not self.ready:self.load()
-  before=copy.deepcopy(self.baseline);parents=copy.deepcopy(self.base_heads);self.ui=copy.deepcopy(state.get('ui',{}));records=__import__('folder_core').flatten(state);self._records=records;self._occupied={};self._scan();self._disk_changes();self._scan();blocked={c['key'] for c in self.conflicts}
+  before=copy.deepcopy(self.baseline);parents=copy.deepcopy(self.base_heads);self.ui=copy.deepcopy(state.get('ui',{}));records=__import__('folder_core').flatten(state);self._records=records;self._occupied={};self._scan();self._disk_changes();self._scan();blocked={c['key'] for c in self.conflicts}|getattr(self,'_history_pending_keys',set())
   oldpaths=copy.deepcopy(self.paths);paths={k:portable_path(self._record_path(k,r,records)) for k,r in records.items()}
   for key,r in records.items():
    if key in self.invalid and original_records.get(key)==before.get(key):r=records[key]=copy.deepcopy(before[key])
@@ -235,6 +238,7 @@ class Store(FastFiles,CoreStore):
    for key in set(before)|set(records):
     r=records.get(key);path=paths.get(key) or oldpaths[key]
     if r==before.get(key) and path==oldpaths.get(key):continue
+    if key in blocked:raise ValueError('Карточка заблокирована до выбора версии конфликта: '+key)
     self._emit(key,r,parents.get(key,[]),path);changed.append(key)
    # Publish this save's own JSON projections before scanning them as external edits.
    # Unchanged, damaged and concurrent cards are deliberately left alone.

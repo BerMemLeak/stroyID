@@ -171,12 +171,12 @@ class Store:
  def _disk_changes(self):
   self.invalid=set()
   for key,r in list(self.latest.items()):
-   if r is None:continue
+   if r is None or key in getattr(self,'_history_pending_keys',set()):continue
    p=self.path(self.paths[key])
    if not p.exists():continue
    try:
     v=self._read_json(p)
-    if v==r['data'] or any(e['key']==key and e['record'] and e['record']['data']==v for e in self.events.values()):continue
+    if v==r['data'] or any(e['key']==key and ((e['record'] and e['record']['data']==v) or e.get('dataDigest')==digest(v)) for e in self.events.values()):continue
     self._validate_card(v,r);updated=copy.deepcopy(r);updated['data']=v;self._emit(key,updated,self.materialized.get(key,self.heads[key]),self.paths[key])
    except Exception as ex:
     self.invalid.add(key);detail='Неверный синтаксис: строка '+str(ex.lineno)+', столбец '+str(ex.colno) if isinstance(ex,json.JSONDecodeError) else str(ex)
@@ -216,7 +216,7 @@ class Store:
     key=field+':'+ident;r={'kind':field,'parent':parent,'field':field,'data':v,'position':100000};path=folder/('Материал.json' if field in ('base','materials') else 'Карточка.json')
     if key not in self.latest:self._emit(key,r,[],path.relative_to(self.root))
  def _adopt_files(self):
-  conflict={c['key'] for c in self.conflicts}
+  conflict={c['key'] for c in self.conflicts}|getattr(self,'_history_pending_keys',set())
   for key,r in list(self.latest.items()):
    if r is None or key in self.invalid or key in conflict:continue
    v=copy.deepcopy(r['data']);folder=self.path(self.paths[key]).parent
@@ -230,6 +230,7 @@ class Store:
     sha=self.hash_file(p)
     if sha==node.get('fileHash'):continue
     known={a.get('fileHash') for e in self.events.values() if e['key']==key and e['record'] for a in walk(e['record']['data']) if a.get('fileKey')==rel}
+    known.update(a['sha'] for e in self.events.values() if e['key']==key for a in e.get('retiredAssets',[]) if a.get('original')==rel)
     if sha in known:continue
     node['fileHash']=self._blob(p);changed=True
     if p.suffix.lower()=='.pdf':node['pages']=self._pages(p)
@@ -242,7 +243,7 @@ class Store:
     for p in self._files_in(loc):
      rel=p.relative_to(self.root).as_posix()
      if any(n.get('fileKey')==rel for n in walk(v)):continue
-     if any(e['key']==key and e['record'] and any(n.get('fileKey')==rel for n in walk(e['record']['data'])) for e in self.events.values()):continue
+     if any(e['key']==key and ((e['record'] and any(n.get('fileKey')==rel for n in walk(e['record']['data']))) or any(a.get('original')==rel for a in e.get('retiredAssets',[]))) for e in self.events.values()):continue
      info={'id':'f'+hashlib.sha256(rel.encode()).hexdigest()[:16],'name':p.stem,'file':p.name,'fileKey':rel,'fileHash':self._blob(p),'num':'','date':'','pages':self._pages(p)}
      if r['kind'] in ('materials','base'):
       info['type']='Паспорт' if 'паспорт' in p.stem.lower() else 'Декларация о соответствии' if 'деклар' in p.stem.lower() else 'Сертификат соответствия';v.setdefault('docs',[]).append(info)
