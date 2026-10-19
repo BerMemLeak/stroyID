@@ -20,8 +20,17 @@ def started(v):
  if stage or not v:return
  stage=1
  window.page.runJavaScript('''(async()=>{try{
+ window.regressionSynthetic=!S.projects.length;
  if(!S.projects.length){A.newProject();document.querySelector('#np-n').value='Проверочный объект';document.querySelector('[data-mb="1"]').click();await desktopFlush(true);A.newSystem({p:S.projects[0].id});document.querySelector('input[name=ns][value="ВК"]').checked=true;document.querySelector('[data-mb="1"]').click();await desktopFlush(true);A.newAct({s:S.projects[0].systems[0].id});document.querySelector('[data-mb="1"]').click();await desktopFlush(true);}
  const p=S.projects[0];window.regressionPid=p.id;window.regressionSid=p.systems[0].id;
+ // The isolated export fixture includes a real, filled quantity statement.
+ // A supplied workspace retains its own act data and validation results.
+ if(window.regressionSynthetic){
+  const a=p.systems[0].acts[0];a.works='Монтаж трубопроводов';
+  a.quantityRows=[{id:'reg-quantity-1',name:'Монтаж трубы',place:'Этаж 1',unit:'м',qty:'12,5'},
+   {id:'reg-quantity-2',name:'Установка креплений',place:'Этаж 1',unit:'шт.',qty:'8'}];
+  save();await desktopFlush(true);
+ }
  // Reordered identified rows must never alias or mutate one another.
  const first={id:'A',x:1},second={id:'B',x:2},rows=[first,second];reconcile(rows,[{id:'B',x:3},{id:'C',x:4}]);
  if(rows[0]!==second||rows[0]===rows[1]||rows[0].id!=='B'||rows[1].id!=='C'||first.id!=='A')throw Error('Identified-array corruption');
@@ -62,10 +71,11 @@ def receive(raw):
   # Explicit test selection: exclude ONLY the diagnosed empty card in memory.
   # Production data and the uploaded ZIP remain unchanged. Use builtin forms to
   # check actual source PDFs here; genuine Word launch is covered separately.
+  # Keep document IDs so act references still resolve to quantity attachments.
   for volume in plan['volumes']:
    volume['documents']=[d for d in volume['documents'] if d not in missing]
    for d in volume['documents']:
-    if d['kind']=='word':d.clear();d.update(kind='html',type='Проверка',name='Форма',html='<h1>Проверка комплекта</h1>')
+    if d['kind']=='word':d.update(kind='html',html='<h1>Проверка комплекта</h1>')
     if d['kind']=='registry':d.pop('templateKey',None)
   built=prepare_export(store,plan);result=write_export(built,root/'Проверенный комплект.pdf',store);assert result['pages']>4
   assert not store.load()['warnings'];print('PASS repeated local creation/save/refresh, passports/signers, cancelled and completed document drafts; PDF:',result['pages'],'pages')
@@ -91,4 +101,4 @@ with patch('app.QFileDialog.getOpenFileName',return_value=(str(pdf),'PDF')):code
 timer.stop();dispose_window(window);store.close()
 if code==0:
  reopened=Store(root/'base');r=reopened.load();assert not r['warnings'],r['warnings'];assert not r['conflicts'];assert not any(x['id'].startswith('reg-person-') for x in r['state']['lib']['people']);reopened.close();print('PASS reopen after all operations, no corrupt cards')
-temp.cleanup();print('\n'.join(errors));sys.exit(code)
+temp.cleanup();print('\n'.join(errors));sys.exit(1 if errors else code)
