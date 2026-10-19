@@ -70,8 +70,18 @@ def ready(value):
       S.volCfg={};IX=null;ensureWorkspace();save();await desktopFlush(true);
       const vol=volumeList(p).find(v=>v.s);history.replaceState(null,'','#/build/'+p.id+'/'+vol.key);render();
       if(!document.querySelector('[data-a="assemblyRun"]'))throw Error('No PDF button');
-      const plan=pdfPlan(p,[vol]),link=plan.volumes[0].documents.find(x=>x.id.startsWith('linked:'));
-      if(!link||link.from!==2||link.to!==3)throw Error('Selected sheets missing');
+      // Source identity and selected sheets are stable across both placement modes;
+      // internal export IDs differ for a shared-section item and an act attachment.
+      const documents=pdfPlan(p,[vol]).volumes[0].documents;
+      const links=documents.filter(x=>x.kind==='pdf'&&x.sourceRecordId==='outside');
+      const link=links[0];
+      if(links.length!==1||link.from!==2||link.to!==3)throw Error('Selected sheets missing or duplicated');
+      const actIndex=documents.findIndex(x=>x.id==='a'+a.id);
+      if(link.ownerActId!==a.id||link.block!=='aosr'||documents[actIndex+1]!==link)throw Error('Selected sheets must follow their AOSR');
+      S.volCfg[p.id+'|'+vol.key]={actSchemes:'section'};
+      const separate=pdfPlan(p,[vol]).volumes[0].documents.filter(x=>x.kind==='pdf'&&x.sourceRecordId==='outside');
+      if(separate.length!==1||separate[0].from!==2||separate[0].to!==3||separate[0].block!=='schemes')throw Error('Separate schemes section lost selected sheets');
+      delete S.volCfg[p.id+'|'+vol.key];
       const all=await A.downloadAssemblyPdf({all:'1'});if(!all)throw Error(document.querySelector('#modal-root').innerText);
       // A missing real source must produce a useful error rather than an incomplete download.
       s.trials[0].fileKey='';const blocked=await A.downloadAssemblyPdf({all:'1'});
