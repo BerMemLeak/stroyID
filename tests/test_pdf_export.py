@@ -63,6 +63,22 @@ class PdfExportTests(unittest.TestCase):
         self.assertEqual(len(reader.outline), 4)  # two volume nodes with children
         self.assertEqual(self.store.asset_path(self.asset['id'])[0].read_bytes(), original)
 
+    def test_shared_pdf_is_parsed_once_and_ranges_stay_independent(self):
+        from unittest.mock import patch
+        import pdf_export
+        plan={'volumes':[{'title':'Том','documents':[
+            {'kind':'pdf','id':'first','name':'Первый акт','key':self.asset['id'],'from':1,'to':1},
+            {'kind':'pdf','id':'second','name':'Второй акт','key':self.asset['id'],'from':2,'to':3}]}]}
+        with patch.object(pdf_export,'read_pdf',wraps=pdf_export.read_pdf) as read:
+            prepared=prepare_export(self.store,plan)
+        self.assertEqual(read.call_count,1)
+        docs=prepared['volumes'][0]['documents']
+        self.assertEqual([doc['count'] for doc in docs],[1,2])
+        result=write_export(prepared,self.root/'shared.pdf',self.store)
+        reader=PdfReader(result['path'])
+        self.assertEqual(len(reader.pages),3)
+        for i,page in enumerate(reader.pages):self.assertIn('Исходный лист '+str(i+1),page_text(page))
+
     def test_missing_sources_and_bad_ranges_are_not_silently_skipped(self):
         target = self.root / 'result.pdf'
         target.write_bytes(b'keep previous output')

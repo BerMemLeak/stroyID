@@ -113,6 +113,8 @@ def prepare_export(store, plan):
     with tempfile.TemporaryDirectory(prefix='stroiid-pdf-') as work:
         work = Path(work)
         word_jobs, word_documents = [], []
+        # A shared certificate or multi-sheet drawing is parsed once per export.
+        source_readers = {}
         for vi, volume in enumerate(plan['volumes']):
             docs = []
             for di, item in enumerate(volume.get('documents', [])):
@@ -141,7 +143,10 @@ def prepare_export(store, plan):
                         if not item.get('key'):
                             raise ValueError('исходный PDF не загружен; откройте карточку и загрузите файл')
                         source, _ = store.asset_path(item['key'])
-                        reader = read_pdf(source.read_bytes(), label)
+                        source_key = str(source)
+                        if source_key not in source_readers:
+                            source_readers[source_key] = read_pdf(source.read_bytes(), label)
+                        reader = source_readers[source_key]
                         selection = list(range(len(reader.pages)))
                         if item.get('from') is not None or item.get('to') is not None:
                             first, last = item.get('from'), item.get('to')

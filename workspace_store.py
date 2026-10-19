@@ -44,6 +44,11 @@ class Store(CardHistory,FastFiles,CoreStore):
    if dest.exists():dest=dest.with_name(dest.name+' ('+uuid.uuid4().hex[:8]+')')
    shutil.move(old,dest)
  def _record_path(self,key,r,records):
+  cache=getattr(self,'_path_plan_cache',None)
+  if cache is None:return self._compute_record_path(key,r,records)
+  if key not in cache:cache[key]=self._compute_record_path(key,r,records)
+  return cache[key]
+ def _compute_record_path(self,key,r,records):
   if key=='root':return '_Служебное/Настройки/База.json'
   kind=r['kind'];d=r['data']
   if kind in ('history','builds','volume'):return '_Служебное/Настройки/'+{'history':'История','builds':'Сборки','volume':'Составы'}[kind]+'/'+hashlib.sha256(key.encode()).hexdigest()[:16]+'.json'
@@ -135,14 +140,14 @@ class Store(CardHistory,FastFiles,CoreStore):
        if sha and blob.is_file() and self.hash_file(blob)==sha:atomic(target,blob.read_bytes())
        else:self.warnings.append({'key':key,'path':rel,'message':'Ожидается файл выбранной версии. Проверьте синхронизацию.'})
     content=encode(r['data'])
-    if not path.exists() or path.read_bytes()!=content:atomic(path,content)
+    self._write_projection(path,content)
     self.materialized[key]=list(self.heads[key]);self.known[key]={'files':[self.paths[key]]+[n[f] for n in walk(r['data']) for f in ('fileKey','photoKey','logoKey','signKey') if n.get(f)]}
     if r['kind']=='acts':
      for name in ('Схемы к акту','Испытания к акту','Фотографии'):(path.parent/name).mkdir(exist_ok=True)
    for key,r in self.latest.items():
     if r is None:self.known.pop(key,None)
    ledger=encode(self.known)
-   if not self.ledger_path.exists() or self.ledger_path.read_bytes()!=ledger:atomic(self.ledger_path,ledger)
+   self._write_projection(self.ledger_path,ledger)
   finally:self.invalid=saved_invalid
   if getattr(self,'_history_pruned',set()):self._collect_history()
  def load(self):
@@ -225,7 +230,9 @@ class Store(CardHistory,FastFiles,CoreStore):
   state=migrate(state)
   if not self.ready:self.load()
   before=copy.deepcopy(self.baseline);parents=copy.deepcopy(self.base_heads);self.ui=copy.deepcopy(state.get('ui',{}));records=__import__('folder_core').flatten(state);self._records=records;self._occupied={};self._scan();self._disk_changes();self._scan();blocked={c['key'] for c in self.conflicts}|getattr(self,'_history_pending_keys',set())
-  oldpaths=copy.deepcopy(self.paths);paths={k:portable_path(self._record_path(k,r,records)) for k,r in records.items()}
+  oldpaths=copy.deepcopy(self.paths);self._path_plan_cache={}
+  try:paths={k:portable_path(self._record_path(k,r,records)) for k,r in records.items()}
+  finally:self._path_plan_cache=None
   for key,r in records.items():
    if key in self.invalid and original_records.get(key)==before.get(key):r=records[key]=copy.deepcopy(before[key])
    if key in self.invalid or key in self.missing or key in blocked:

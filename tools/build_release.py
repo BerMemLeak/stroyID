@@ -98,6 +98,8 @@ def build():
         command([sys.executable, 'tests/smoke_folders.py'], 120, stage=report['stage'])
         report['stage'] = 'qt-executions-and-frames'
         command([sys.executable, 'tests/smoke_executions.py'], 120, stage=report['stage'])
+        report['stage'] = 'qt-act-attachment-bundles'
+        command([sys.executable, 'tests/smoke_act_bundles.py'], 120, stage=report['stage'])
         report['stage'] = 'qt-manual-save-and-idle'
         command([sys.executable,'tests/smoke_manual.py'],150,stage=report['stage'])
         report['stage'] = 'qt-local-regressions'

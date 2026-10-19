@@ -20,6 +20,19 @@ class ScopeAndSpeed(unittest.TestCase):
   self.fixture();self.store.load();before=self.store.metrics.copy();cpu=time.process_time()
   for _ in range(10):self.store.load()
   self.assertEqual(self.store.metrics['hashed_files'],before['hashed_files']);self.assertEqual(self.store.metrics['parsed_json'],before['parsed_json']);self.assertLess(time.process_time()-cpu,2)
+ def test_projection_cache_skips_reads_and_repairs_external_history_changes(self):
+  self.fixture();self.store.load();before=self.store.metrics.get('projection_reads',0)
+  self.store.load();self.assertEqual(self.store.metrics.get('projection_reads',0),before)
+  manifest=next(self.store.root.glob('**/История версий/**/Версия.json'))
+  original=manifest.read_bytes();manifest.write_bytes(b'{"broken":true}')
+  self.store.load();self.assertEqual(manifest.read_bytes(),original)
+ def test_path_plan_computes_each_card_once_with_nested_hierarchy(self):
+  from unittest.mock import patch
+  s=self.fixture()
+  with patch.object(self.store,'_compute_record_path',wraps=self.store._compute_record_path) as compute:
+   self.store.save(s,self.store.revision)
+  keys=[call.args[0] for call in compute.call_args_list]
+  self.assertEqual(len(keys),len(set(keys)))
  def test_cache_invalidates_on_external_file_replacement(self):
   s=self.fixture();path=self.store.path(s['projects'][0]['materials'][0]['docs'][0]['fileKey']);before=self.store.hash_file(path);path.write_bytes(path.read_bytes()+b'\n% changed');self.assertNotEqual(self.store.hash_file(path),before)
  def test_preview_delete_and_restore_never_persist_until_explicit_save(self):

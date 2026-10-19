@@ -231,8 +231,7 @@ class CardHistory:
                             'sourceVersion': event.get('sourceVersion'), 'record': event['record'], 'files': files}
                 target = folder / 'Версия.json'
                 data = encode(manifest)
-                if not target.exists() or target.read_bytes() != data:
-                    atomic(target, data)
+                self._write_projection(target, data)
         return groups
 
     def _checkpoint(self, reason):
