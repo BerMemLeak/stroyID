@@ -12,11 +12,46 @@ const folderRender=render;render=()=>{folderRender();document.querySelectorAll('
 };
 const folderProject=V.p;V.p=r=>{let h=folderProject(r);const p=proj(r[1]);if(p&&(!r[2]||['overview','card','info','params'].includes(r[2])))h=h.slice(0,-6)+`<div class="card"><h3>Фото объекта</h3>${p.photo?`<img src="${esc(p.photo)}" style="max-width:100%;max-height:300px;object-fit:contain;display:block;margin-bottom:12px">`:''}${B(p.photo?'Заменить фото':'Добавить фото','objectPhoto',`data-id="${p.id}"`)}${p.photoKey?B('Открыть фото','openBlob',`data-key="${esc(p.photoKey)}"`):''}</div></div>`;return h;};
 A.objectPhoto=async d=>{try{const img=await nativeCall('pickImage');if(!img)return;proj(d.id).photo=img;save();await desktopFlush();render();}catch(e){toast(e.message);}};
-const oldOrgView=libOrgs;libOrgs=(tab,sel)=>{if(tab!=='orgs')sel=org(person(sel)?.orgId)?.id||S.ui.organization||S.lib.orgs[0]?.id;const o=org(sel);if(o)S.ui.organization=o.id;let h=oldOrgView('orgs',sel).replace(/<div class="tabs">[\s\S]*?<\/div>/,'');if(!o)return h;
+const oldOrgView=libOrgs;libOrgs=(tab,sel)=>{if(tab!=='orgs')sel=org(person(sel)?.orgId)?.id||S.ui.organization||S.lib.orgs[0]?.id;const o=org(sel);if(o)S.ui.organization=o.id;let h=oldOrgView('orgs',sel).replace(/<div class="tabs">[\s\S]*?<\/div>/,'');if(!o)return h;h=h.replace(F('Роль','org',o.id,'role',o.role,{opts:ORG_ROLES,rr:1}),organizationRoleField(o));
  const people=S.lib.people.filter(x=>x.orgId===o.id),orders=S.lib.orders.filter(x=>x.orgId===o.id);
  return h.slice(0,-6)+`<div class="card"><h3>Представители и подписанты<span class="r">${B('Добавить представителя','orgPerson',`data-id="${o.id}"`,'sm')}</span></h3>${people.map(x=>`<details class="card"><summary>${esc(x.fioShort||'Новый представитель')} · ${esc(x.position)}</summary><div class="g2 mt">${F('ФИО полностью','per',x.id,'fio',x.fio)}${F('Должность','per',x.id,'position',x.position)}${F('Роль в актах','per',x.id,'docRole',x.docRole,{opts:ROLE_SH.map((t,i)=>[i,t])})}${F('НРС','per',x.id,'nrs',x.nrs)}${F('Основание полномочий','per',x.id,'authority',x.authority)}</div><div class="row mt">${Object.keys(S.lib.signMatrix).map(t=>`<label><input type="checkbox" data-a="signTog" data-t="${esc(t)}" data-p="${x.id}" ${S.lib.signMatrix[t].includes(x.id)?'checked':''}> ${esc(t)}</label>`).join('')}${B('Удалить','orgRemovePerson',`data-id="${x.id}"`,'sm ghost')}</div></details>`).join('')||'<p>Представители ещё не добавлены.</p>'}</div><div class="card"><h3>Приказы и допуски<span class="r">${B('Добавить документ','orgOrder',`data-id="${o.id}"`,'sm')}</span></h3>${orders.map(x=>`<div class="resource mb"><div class="g3">${F('Наименование','ord',x.id,'name',x.name)}${F('Номер','ord',x.id,'num',x.num)}${F('Дата','ord',x.id,'date',x.date,{type:'date'})}</div><div class="row mt"><span class="grow">${esc(x.file||'Файл не загружен')}</span>${x.fileKey?B('Открыть','openBlob',`data-key="${esc(x.fileKey)}"`):''}${B(x.fileKey?'Заменить файл':'Загрузить файл','pickPdf',`data-ent="ord" data-id="${x.id}" data-p=""`)}${B('Удалить','del',`data-ent="ord" data-id="${x.id}"`,'sm ghost')}</div></div>`).join('')||'<p>Приказы и допуски ещё не добавлены.</p>'}</div></div>`;};
 A.orgPerson=d=>{const x={id:'p'+uid(),fio:'',fioShort:'Новый представитель',position:'',orgId:d.id,docRole:1,authority:'',nrs:'',sign:''};S.lib.people.push(x);Object.values(S.lib.signMatrix).forEach(l=>l.push(x.id));commit('Добавлен представитель организации');};
 A.orgOrder=d=>{S.lib.orders.push({id:'or'+uid(),name:'Новый документ',num:'',date:today(),orgId:d.id,file:'',pages:0});commit('Добавлен документ организации');};
+// Keep role choices inside the page: no native WebEngine popup window is needed.
+function organizationRoleField(o){
+ const id='org-role-'+o.id,native=F('','org',o.id,'role',o.role,{opts:ORG_ROLES,rr:1}).replace('<label ', '<label style="display:none" ');
+ return `<div class="fld"><span id="${esc(id)}-label">Роль</span><div class="org-role-picker" data-org-role="${esc(o.id)}">${native}<button type="button" class="org-role-trigger" data-a="orgRoleOpen" data-ent="org" data-id="${esc(o.id)}" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="${esc(id)}-label ${esc(id)}-value" aria-controls="${esc(id)}-list" ${S.ui.ro?'disabled':''}><span id="${esc(id)}-value">${esc(o.role||'Выберите роль')}</span><span aria-hidden="true">⌄</span></button><div class="org-role-list" id="${esc(id)}-list" role="listbox" aria-labelledby="${esc(id)}-label" hidden>${ORG_ROLES.map(role=>`<button type="button" role="option" tabindex="-1" aria-selected="${role===o.role}" data-a="orgRoleChoose" data-ent="org" data-id="${esc(o.id)}" data-role-value="${esc(role)}" ${S.ui.ro?'disabled':''}>${esc(role)}</button>`).join('')}</div></div></div>`;
+}
+function closeOrganizationRole(root,focus=false){
+ root.querySelector('.org-role-list').hidden=true;const trigger=root.querySelector('.org-role-trigger');trigger.setAttribute('aria-expanded','false');if(focus)trigger.focus();
+}
+A.orgRoleOpen=(d,el)=>{
+ if(!guard(entKey('org',d.id)))return;
+ const root=el.closest('[data-org-role]'),list=root.querySelector('.org-role-list'),open=list.hidden;
+ document.querySelectorAll('[data-org-role]').forEach(other=>closeOrganizationRole(other));
+ if(!open)return;
+ list.hidden=false;el.setAttribute('aria-expanded','true');list.scrollIntoView({block:'nearest'});
+ (list.querySelector('[aria-selected="true"]')||list.querySelector('[role="option"]')).focus();
+};
+A.orgRoleChoose=(d,el)=>{
+ if(!ORG_ROLES.includes(d.roleValue)||!guard(entKey('org',d.id)))return;
+ const root=el.closest('[data-org-role]'),field=root.querySelector('select[data-f="role"]');if(field.disabled)return;
+ field.value=d.roleValue;apply(field,false);
+ document.querySelectorAll('[data-org-role]').forEach(other=>{if(other.dataset.orgRole===d.id)closeOrganizationRole(other,true);});
+};
+document.addEventListener('pointerdown',event=>{
+ document.querySelectorAll('[data-org-role]').forEach(root=>{if(!root.contains(event.target))closeOrganizationRole(root);});
+});
+document.addEventListener('keydown',event=>{
+ const root=event.target.closest?.('[data-org-role]');if(!root)return;
+ const list=root.querySelector('.org-role-list'),options=[...list.querySelectorAll('[role="option"]')];
+ if(event.key==='Escape'&&!list.hidden){event.preventDefault();event.stopImmediatePropagation();closeOrganizationRole(root,true);return;}
+ if(event.key==='Tab'&&!list.hidden){closeOrganizationRole(root,true);return;}
+ if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;
+ event.preventDefault();if(list.hidden){A.orgRoleOpen(root.querySelector('.org-role-trigger').dataset,root.querySelector('.org-role-trigger'));return;}
+ const index=options.indexOf(document.activeElement),next=event.key==='Home'?0:event.key==='End'?options.length-1:(index+(event.key==='ArrowDown'?1:-1)+options.length)%options.length;
+ options[next].focus();
+},true);
 A.orgRemovePerson=d=>confirmBox('Удалить представителя','Проверьте назначение подписантов в актах после удаления.',()=>{S.lib.people=S.lib.people.filter(x=>x.id!==d.id);for(const k in S.lib.signMatrix)S.lib.signMatrix[k]=S.lib.signMatrix[k].filter(id=>id!==d.id);commit('Удалён представитель');},'Удалить');
 const EXPORT_BLOCKS=[['title','Титульный лист'],['reg','Реестр'],['orders','Приказы'],['ozhr','Общий журнал'],['spj','Специальные журналы'],['aook','АООК'],['survey','Съёмки'],['aik','АИК'],['aosr','АОСР'],['schemes','Схемы'],['tests','Испытания'],['quality','Документы качества'],['pass','Паспорта оборудования'],['instr','Эксплуатация']];
 function profileExportControls(pf){pf.exportSettings=pf.exportSettings||{order:EXPORT_BLOCKS.map(x=>x[0]),off:[]};const c=pf.exportSettings;return `<div class="card"><h3>Настройки экспорта</h3><p class="small mut">Состав и порядок применяются ко всем томам, собираемым по этому профилю. В каждый том включаются относящиеся к нему разделы.</p>${c.order.map(key=>`<div class="row mb"><label class="grow"><input type="checkbox" data-a="profileBlock" data-id="${pf.id}" data-key="${key}" ${c.off.includes(key)?'':'checked'}> ${esc(EXPORT_BLOCKS.find(x=>x[0]===key)?.[1]||key)}</label>${B('↑','profileMove',`data-id="${pf.id}" data-key="${key}" data-d="-1"`,'sm')}${B('↓','profileMove',`data-id="${pf.id}" data-key="${key}" data-d="1"`,'sm')}</div>`).join('')}<p class="small mut">Реестр пересчитывается по фактическим страницам. Комплект сохраняется одним PDF.</p></div>`;}

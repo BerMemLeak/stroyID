@@ -96,6 +96,8 @@ def build():
         command([sys.executable, 'tests/smoke_quantities.py'], 150, stage=report['stage'])
         report['stage'] = 'qt-folder-workspace'
         command([sys.executable, 'tests/smoke_folders.py'], 120, stage=report['stage'])
+        report['stage'] = 'qt-organization-role-picker'
+        command([sys.executable, 'tests/smoke_org_roles.py'], 120, stage=report['stage'])
         report['stage'] = 'qt-executions-and-frames'
         command([sys.executable, 'tests/smoke_executions.py'], 120, stage=report['stage'])
         report['stage'] = 'qt-act-attachment-bundles'
