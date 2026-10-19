@@ -425,6 +425,9 @@ wordContext = (p, v = {}, id = 'title') => {
   data.values.Логотип_Компании = id === 'title' ? (issuer ? (issuer.logo || '') : (p.logo || '')) : '';
   if (issuer) {
     data.values.Организация_Подписант_5 = issuer.full || issuer.short;
+    data.values.Реквизиты_Организации_Подписант_5 = [issuer.full || issuer.short, issuer.ogrn?'ОГРН '+issuer.ogrn:'', issuer.inn?'ИНН '+issuer.inn:''].filter(Boolean).join(', ');
+    data.values.Адрес_Организации_Подписант_5 = issuer.address || '';
+    data.values.СРО_Организации_Подписант_5 = issuer.sro || '';
   }
   const e = execution(p, v.executionId);
   data.values.Начало_Выполнения = fmtD(e?.start || '');

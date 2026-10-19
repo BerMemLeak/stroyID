@@ -40,6 +40,15 @@ def ready(value):
  assert(cfg.values.Шифр==='2026-00000-01-0-ВК1'&&cfg.values.Система===s.name&&cfg.values.Стадия==='Р','Stamp field mapping');assert(cfg.values.Дата==='18.10.2026','Signature date from act');assert(cfg.values.АОСР===a.num&&cfg.values.Номер_Приложения==='1','Full source act resolution');
  choose('.dlg [data-frame-signer="developed"]','');assert(drawingContext(p,s,item,v).values.Разработал==='','Cleared developer must remain empty');
  choose('.dlg [data-frame-signer="developed"]',people[0].id);closeModal();
+ s.scheme.rd='Рабочая документация «Система водоснабжения», шифр ДРУГОЙ';
+ assert(!drawingContext(p,s,item,v).values.Шифр.includes('Рабочая документация'),'RD description leaked into cipher');
+ s.scheme.frameCipher='Отдельный-01';assert(drawingContext(p,s,item,v).values.Шифр==='Отдельный-01','Explicit frame cipher');delete s.scheme.frameCipher;
+ a.schemes=[];const list=appsText(a,s);assert(list.includes('1. Исполнительная схема № ВК1-1 «Устройство водоснабжения», 3 л.'),'Full attachment list: '+list);
+ assert(wordContext(p,v,'a'+a.id).values.Приложения===list,'Word attachment tags differ');
+ const fullLinks=a.schemeLinks;a.schemeLinks=[{id:'system',from:2,to:3}];assert(appsText(a,s).includes(', 2 л.'),'Attachment count must use selected pages');
+ a.schemeLinks.push({id:'system',from:1,to:2});assert(appsText(a,s).includes(', 3 л.')&&!appsText(a,s).includes('2. Исполнительная'),'Overlapping selections must count unique pages once');a.schemeLinks=fullLinks;
+ const ctxTags=wordContext(p,v,'a'+a.id).values;assert(ctxTags.Реквизиты_Организации_Подписант_1.includes('ИНН')&&ctxTags.Полномочия_Подписант_1!==undefined,'Organization and authority tags');
+
  s.cipher='2026-00000-01-0-ВК1';assert(drawingContext(p,s,item,v).values.Шифр===s.cipher,'Duplicate system suffix');
  const second={...a,id:'act-other',num:'АОСР-043',date:'2026-10-19',executionId:a.executionId,schemeLinks:[{id:'system',from:1,to:3}]};s.acts.push(second);s.scheme.frameActId=second.id;
  assert(drawingContext(p,s,item,v).values.АОСР===second.num,'Explicit act selection');assert(drawingContext(p,s,item,v,a).values.АОСР===a.num,'Export owner must win');

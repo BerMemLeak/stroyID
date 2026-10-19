@@ -22,7 +22,7 @@ PKG = 'http://schemas.openxmlformats.org/package/2006/relationships'
 XML_SPACE = '{http://www.w3.org/XML/1998/namespace}space'
 TAG = re.compile(r'\{\{\s*([^{}]+?)\s*\}\}')
 PART = re.compile(r'^word/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$')
-COLLECTIONS = {'Реестр', 'Строки', 'Фото'}
+COLLECTIONS = {'Реестр', 'Строки', 'Фото', 'Объемы'}
 
 def parse_xml(data):
     if b'<!DOCTYPE' in data.upper() or b'<!ENTITY' in data.upper():
@@ -183,6 +183,7 @@ def fill_docx(data, target, values, collections=None):
     known.update('Строки.Колонка_' + str(i) for i in range(1, 21))
     known.update({'Реестр.Номер', 'Реестр.Наименование', 'Реестр.Тип', 'Реестр.Номер_Дата', 'Реестр.Листы',
                   'Строки.Номер', 'Фото.Номер', 'Фото.Подпись', 'Фото.Изображение'})
+    known.update('Объемы.' + k for k in ('Номер', 'Наименование', 'Место', 'Единица', 'Количество'))
     missing = set(inspect_docx(data)['tags']) - known
     if missing:
         raise ValueError('Неизвестные теги: ' + ', '.join('{{' + x + '}}' for x in sorted(missing)))
@@ -371,6 +372,9 @@ def convert_docx_batch(jobs):
 
 def sample_docx(section, title, target):
     """A real editable example showing supported tags and repeating table rows."""
+    if section == 'quantity':
+        Path(target).write_bytes((Path(__file__).parent / 'ui/reference-templates/quantities.docx').read_bytes())
+        return Path(target)
     ET.register_namespace('w', W)
     document = ET.Element('{' + W + '}document')
     body = ET.SubElement(document, '{' + W + '}body')

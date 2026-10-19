@@ -85,6 +85,26 @@ class ExportSourceError(ValueError):
             for issue in issues))
 
 
+def word_template_path(store, item):
+    if item.get('builtinTemplate'):
+        if item['builtinTemplate'] != 'quantity':
+            raise ValueError('Неизвестный встроенный шаблон')
+        return Path(__file__).parent / 'ui/reference-templates/quantities.docx'
+    return store.asset_path(item.get('templateKey', ''))[0]
+
+
+def replace_page_refs(value, replacements):
+    if isinstance(value, str):
+        for marker, count in replacements.items():
+            value = value.replace(marker, str(count))
+        return value
+    if isinstance(value, dict):
+        return {key: replace_page_refs(part, replacements) for key, part in value.items()}
+    if isinstance(value, list):
+        return [replace_page_refs(part, replacements) for part in value]
+    return value
+
+
 def prepare_export(store, plan):
     """Resolve every source before offering Save; missing documents never get skipped."""
     if not isinstance(plan, dict) or not plan.get('volumes'):
@@ -108,7 +128,7 @@ def prepare_export(store, plan):
                         docs.append(dict(item, count=1, reader=None, selection=None))
                         continue
                     if kind == 'word':
-                        source, _ = store.asset_path(item.get('templateKey', ''))
+                        source = word_template_path(store, item)
                         filled = work / f'word-{vi}-{di}.docx'
                         target = filled.with_suffix('.pdf')
                         fill_docx(source.read_bytes(), filled, item.get('values', {}), item.get('collections', {}))
@@ -164,6 +184,42 @@ def prepare_export(store, plan):
             reader = read_pdf(target.read_bytes(), label)
             count = len(reader.pages)
             doc.update(reader=reader, selection=list(range(count)), count=count)
+        # Render acts again after attachments have their actual (possibly multi-page) length.
+        # Only generated forms participate; signed scans remain untouched.
+        jobs, updated = [], []
+        for vi, volume in enumerate(volumes):
+            by_id = {doc.get('id'): doc for doc in volume['documents']}
+            for di, doc in enumerate(volume['documents']):
+                refs = doc.get('attachmentPageRefs')
+                if not refs or doc['kind'] not in ('html', 'word'):
+                    continue
+                missing = set(refs.values()) - set(by_id)
+                if missing:
+                    raise ValueError('В составе отсутствует приложение: ' + ', '.join(sorted(missing)))
+                replacements = {marker: by_id[ident]['count'] for marker, ident in refs.items()}
+                for key in ('values', 'collections', 'html', 'parts'):
+                    if key in doc:
+                        doc[key] = replace_page_refs(doc[key], replacements)
+                target = work / f'act-final-{vi}-{di}.pdf'
+                if doc['kind'] == 'word':
+                    filled = target.with_suffix('.docx')
+                    fill_docx(word_template_path(store, doc).read_bytes(), filled,
+                              doc.get('values', {}), doc.get('collections', {}))
+                    jobs.append((filled, target))
+                else:
+                    writer = PdfWriter()
+                    for pi, piece in enumerate(doc.get('parts') or [doc.get('html', '')]):
+                        data = render_html(piece, work / f'act-part-{vi}-{di}-{pi}.pdf',
+                                           landscape=bool(doc.get('landscape')))
+                        writer.append(read_pdf(data, doc.get('name', 'Акт')), import_outline=False)
+                    with target.open('wb') as stream:
+                        writer.write(stream)
+                    writer.close()
+                updated.append((doc, target))
+        convert_docx_batch(jobs)
+        for doc, target in updated:
+            reader = read_pdf(target.read_bytes(), doc.get('name', 'Акт'))
+            doc.update(reader=reader, count=len(reader.pages), selection=list(range(len(reader.pages))))
         # Actual PDF page counts drive the registry, including the registry's own length.
         for attempt in range(12):
             cursor, changed = 1, False

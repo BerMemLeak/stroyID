@@ -1,5 +1,5 @@
 /* PDF assembly for the desktop application. Sources are resolved by managed IDs. */
-function pdfSource(record){return {kind:'pdf',key:record?.fileKey||'',declaredFile:record?.file||'',sourceRecordId:record?.id||''};}
+function pdfSource(record){return {kind:'pdf',key:record?.fileKey||'',declaredFile:record?.file||'',sourceRecordId:record?.id||'',sourceNumber:record?.num||'',sourceTitle:record?.name||''};}
 function pdfTitle(p,vol){return `<p align="center">${esc(p.developer||'')}</p><p align="center">${esc(p.techCustomer||'')}</p><br><br><h1>ИСПОЛНИТЕЛЬНАЯ<br>ДОКУМЕНТАЦИЯ</h1><br><p align="center"><b>${esc(p.name)}</b></p><p align="center">${esc(p.address)}</p><br><h2>${esc(vol.title)}</h2><p align="center">Шифр: ${esc(vol.s?.cipher||p.cipher||'')}</p><br><br><p align="center">${esc(p.genContractor||'')}</p><p align="center">${new Date().getFullYear()}</p>`;}
 function pdfJournal(j){return `<h2>${esc(j.name)}</h2><table border="1" cellspacing="0" cellpadding="4" width="100%"><thead><tr><th>№</th>${j.cols.map(c=>'<th>'+esc(c)+'</th>').join('')}</tr></thead><tbody>${j.rows.map((r,i)=>'<tr><td>'+(i+1)+'</td>'+j.cols.map((_,k)=>'<td>'+esc(r.c[k]||'')+'</td>').join('')+'</tr>').join('')}</tbody></table>`;}
 function pdfPhotos(a){

@@ -120,8 +120,8 @@ is not executed by the Linux validation.
 
 The built-in title block follows the supplied ВК1 example. Every sheet shows
 its source PDF sheet number, total sheets and the linked act attachment block.
-Imported drawings fit between the attachment block and title block at their
-original page size. Long title fields wrap inside their cells.
+Enabled frames are overlaid at the source scale and position without detecting
+existing frames. Disabled frames leave the source drawing unchanged. Long title fields wrap inside their cells.
 
 Set the stage, reviewer and norm-control signer in the system settings. These
 reviewers apply automatically to every drawing in the system. Select the developer
@@ -131,3 +131,23 @@ card. Both title-block and attachment dates come from the linked АОСР.
 Shared framed drawings export separately for each linked act, using that act's
 selected sheets and attachment details. Export warns about empty signer cells
 and allows returning to the cards or continuing with those cells empty.
+
+### Ведомость объёмов работ к АОСР
+
+В карточке АОСР откройте вкладку «Объёмы работ»: включите ведомость и
+заполните одну или несколько строк (работа, место, единица, количество).
+Количество допускает десятичную запятую. Расчёты автоматически не выполняются.
+Переключатель действует только на этот акт; для АООК ведомость не создаётся.
+
+Файл формируется по встроенному шаблону. Свой DOCX можно выбрать в разделе
+«Профили и шаблоны → Ведомость объёмов работ», отдельно для объекта/профиля.
+Строка таблицы с тегами `{{Объемы.Номер}}`, `{{Объемы.Наименование}}`,
+`{{Объемы.Место}}`, `{{Объемы.Единица}}`, `{{Объемы.Количество}}`
+повторяется для каждого объёма. Кнопка «Создать образец с тегами» выдаёт
+встроенный редактируемый шаблон. Для преобразования DOCX в PDF нужен Word.
+
+Ведомость располагается сразу после АОСР, перед фототаблицей. Её фактическое
+число листов подставляется в список приложений акта и учитывается в реестре.
+«Составил» — подписант №5 акта (лицо, выполнившее работы), «Проверил» —
+подписант №3 (строительный контроль лица, осуществляющего строительство).
+Кнопка «Скачать ведомость DOCX» сохраняет её отдельно.

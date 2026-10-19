@@ -30,7 +30,7 @@ class DrawingFrameTests(unittest.TestCase):
    plan={'object':'Тест','volumes':[{'title':'Выполнение 2','documents':[{'id':'reg','kind':'registry','name':'Реестр'},{'id':'drawing','kind':'pdf','key':asset['id'],'name':'Схема','frame':config}]}]}
    prepared=prepare_export(store,plan);target=root/'combined.pdf';write_export(prepared,target,store);reader=PdfReader(target)
    self.assertEqual(len(reader.pages),5);self.assertAlmostEqual(float(reader.pages[3].mediabox.width)/MM,420,places=3);self.assertEqual(store.asset_path(asset['id'])[0].read_bytes(),self.source())
- def test_every_page_has_total_attachment_and_fitted_source(self):
+ def test_every_page_has_total_attachment_and_original_source_scale(self):
   from PySide6.QtGui import QPainter, QPdfWriter
   from PySide6.QtCore import QMarginsF
   from PySide6.QtGui import QPageSize
@@ -49,10 +49,11 @@ class DrawingFrameTests(unittest.TestCase):
     text=''.join(page.extract_text().split());self.assertIn('ACT-42',text);self.assertIn('18.10.2026',text)
     found=[]
     page.extract_text(visitor_text=lambda text,cm,tm,*args:found.append((text,cm,tm)))
-    for text,cm,tm in found:
-     if 'SOURCE' not in text:continue
-     x=tm[4]*cm[0]+tm[5]*cm[2]+cm[4];y=tm[4]*cm[1]+tm[5]*cm[3]+cm[5]
-     self.assertGreater(x,20*MM);self.assertGreater(y,60*MM);self.assertLess(y,float(page.mediabox.height)-30*MM)
+    original=[]
+    reader.pages[i].extract_text(visitor_text=lambda text,cm,tm,*args:original.append((text,cm,tm)))
+    before=[(t,cm,tm) for t,cm,tm in original if 'SOURCE' in t]
+    after=[(t,cm,tm) for t,cm,tm in found if 'SOURCE' in t]
+    self.assertEqual(before,after)  # Legacy fitContent must never scale or move content.
     # Total and sheet are separate text spans at the title block positions.
     self.assertTrue(any(text.strip()=='3' for text,_,_ in found))
     self.assertTrue(any(text.strip()==str(i+1) for text,_,_ in found))

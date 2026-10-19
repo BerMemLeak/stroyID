@@ -101,29 +101,13 @@ def frame_page(page, config, *, sheet=1, total=1, template=None):
     crop=page.cropbox
     w,h=float(crop.width),float(crop.height)
     if w/MM<210-1 or h/MM<120: raise ValueError('Лист слишком мал для основной надписи 185 × 55 мм')
-    if config.get('fitContent') and page.get_contents() is not None:
-        # Preserve the original visible crop when a margin is added: otherwise
-        # previously hidden drawing content could reappear outside that crop.
-        from pypdf.generic import FloatObject
-        contents = page.get_contents()
-        clip = [FloatObject(v) for v in (crop.left, crop.bottom, w, h)]
-        contents.operations = [([], b'q'), (clip, b're'), ([], b'W'), ([], b'n'), *contents.operations, ([], b'Q')]
-        page.replace_contents(contents)
     if float(crop.left) or float(crop.bottom):
         page.add_transformation(Transformation().translate(-float(crop.left),-float(crop.bottom)))
     from pypdf.generic import RectangleObject
     page.mediabox=RectangleObject([0,0,w,h]);page.cropbox=RectangleObject([0,0,w,h])
     wm,hm=w/MM,h/MM
-    if config.get('fitContent'):
-        # PDF coordinates start at the bottom left. Keep physical output size,
-        # preserve the aspect ratio and reserve both labelled regions on every page.
-        left, bottom = 22*MM, 62*MM
-        right, top = w-7*MM, h-32*MM
-        scale = min((right-left)/w, (top-bottom)/h)
-        if scale <= 0:
-            raise ValueError('Недостаточно места для чертежа между штампами')
-        page.add_transformation(Transformation().scale(scale).translate(
-            left + (right-left-w*scale)/2, bottom + (top-bottom-h*scale)/2))
+    # A frame is an overlay only. Ignore legacy fitContent settings so existing
+    # cards cannot accidentally scale or relocate the source drawing.
     values={**config.get('values',{}),'Ширина':wm,'Высота':hm,'X_Надпись':wm-190,'Y_Надпись':hm-60,
         'X_Приложение':wm-58,'Y_Инвентарных_Граф':hm-90,'X_Формат':wm-5,'Y_Формат':hm-1.5,'Ширина_Рамки':wm-25,'Высота_Рамки':hm-10,'Лист':str(sheet),
         'Листов':str(total), 'Формат':paper_format(wm,hm)}

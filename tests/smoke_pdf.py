@@ -56,14 +56,14 @@ def ready(value):
         return
     stage = 1
     script = r'''(async()=>{try{
-      S=seed();S.projects=S.projects.slice(0,1);const p=S.projects[0];
+      S=seed();S.projects.forEach(p=>p.systems.forEach(s=>s.acts.forEach(a=>a.quantityEnabled=false)));S.projects=S.projects.slice(0,1);const p=S.projects[0];
       p.admin=[];p.materials=[];p.journals=[];p.surveys=[];p.opsDocs=[];p.systems=p.systems.slice(0,1);
       const s=p.systems[0];s.subprofiles=s.subprofiles.slice(0,1);s.aik=[];s.journals=[];s.sketches=[];
       s.scheme.file='';s.scheme.fileKey='';s.acts=s.acts.slice(0,2);s.scheme.frameEnabled=false;
       const a=s.acts[0],other=s.acts[1];
       a.type='АОСР';a.subs=[s.subprofiles[0].id];a.materials=[];a.scan={file:'',pages:0};a.schemes=[];a.tests=[];a.testLinks=[];
       a.photos=[{id:'photo1',img:PHOTO,cap:'Монтаж участка 1'},{id:'photo2',img:PHOTO,cap:'Монтаж участка 2'}];a.photoLayout=2;
-      other.type='АОСР';other.subs=[];other.schemes=[{id:'outside',frameEnabled:false,name:'Листы из отдельной схемы',file:'source.pdf',fileKey:ASSET.id,pages:3}];
+      other.type='АОСР';other.subs=[];other.schemes=[{id:'outside',frameEnabled:false,num:'ИС-01',name:'Листы из отдельной схемы',file:'source.pdf',fileKey:ASSET.id,pages:3}];
       other.schemeLinks=[];other.testLinks=[];other.photos=[];other.materials=[];
       a.schemeLinks=[{id:'outside',from:2,to:3}];
       s.trials=[{id:'protocol1',name:'Протокол проверки',num:'П-01',date:'2026-10-02',file:'source.pdf',fileKey:ASSET.id,pages:1}];

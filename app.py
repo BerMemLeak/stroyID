@@ -159,6 +159,23 @@ class Bridge(QObject):
                     target = Path(folder) / ('Образец_' + str(params['section']) + '.docx')
                     sample_docx(params['section'], params['title'], target)
                     value = dict(self.store.import_file(target), **inspect_docx(target.read_bytes()))
+            elif operation == 'saveGeneratedDocx':
+                from pdf_export import word_template_path
+                from word_templates import fill_docx
+                source = word_template_path(self.store, params)
+                name, _ = QFileDialog.getSaveFileName(self.window, 'Сохранить ведомость',
+                    Path(params.get('filename', 'Ведомость.docx')).name, 'Word (*.docx)')
+                value = None
+                if name:
+                    target = Path(name).with_suffix('.docx').resolve()
+                    if target == self.store.root or self.store.root in target.parents:
+                        raise ValueError('Сохраните ведомость вне папки служебных данных')
+                    with tempfile.TemporaryDirectory(prefix='stroiid-quantity-') as folder:
+                        filled = Path(folder) / 'quantity.docx'
+                        fill_docx(source.read_bytes(), filled, params.get('values', {}), params.get('collections', {}))
+                        from folder_store import atomic
+                        atomic(target, filled.read_bytes())
+                    value = str(target)
             elif operation in ('openWordTemplate', 'openFilledWord'):
                 import uuid
                 from word_templates import fill_docx, open_in_word
@@ -229,9 +246,9 @@ class Bridge(QObject):
             elif operation == 'referenceTemplate':
                 from word_templates import inspect_docx
                 section = params.get('section')
-                if section not in ('title', 'reg'):
+                if section not in ('title', 'reg', 'quantity'):
                     raise ValueError('Неизвестный встроенный шаблон')
-                path = Path(__file__).parent / 'ui' / 'reference-templates' / ('title.docx' if section == 'title' else 'registry.docx')
+                path = Path(__file__).parent / 'ui' / 'reference-templates' / {'title': 'title.docx', 'reg': 'registry.docx', 'quantity': 'quantities.docx'}[section]
                 value = {**self.store.import_file(path), **inspect_docx(path.read_bytes())}
             elif operation == 'pickFrameTemplate':
                 from drawing_frame import template_svg
