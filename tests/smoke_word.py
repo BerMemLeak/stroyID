@@ -70,7 +70,7 @@ def ready(value):
       p.name='Объект для Word';p.admin=[];p.materials=[];p.journals=[];p.surveys=[];p.opsDocs=[];p.systems=p.systems.slice(0,1);
       const s=p.systems[0];s.subprofiles=s.subprofiles.slice(0,1);s.aik=[];s.journals=[];s.sketches=[];s.trials=[];s.scheme.file='';s.scheme.fileKey='';s.acts=s.acts.slice(0,1);
       const a=s.acts[0];a.type='АОСР';a.subs=[s.subprofiles[0].id];a.materials=[];a.scan={file:'',pages:0};a.schemes=[];a.tests=[];a.testLinks=[];a.schemeLinks=[];a.photos=[];
-      const p2=clone(p);p2.id='P2';p2.name='Второй объект';p2.short='Второй объект';p2.systems=[];S.projects.push(p2);
+      const p2=clone(p);p2.id='P2';p2.name='Второй объект';p2.systems=[];S.projects.push(p2);
       IX=null;ensureWorkspace();S.volCfg={};S.ui.wordObject=p.id;S.ui.wordProfile='';save();await desktopFlush(true);go('#/lib/templates');render();
       if(document.querySelectorAll('[data-word-section]').length!==13)throw Error('Sections missing');
       await A.tplAdd({section:'aosr'});const basic=S.lib.templates.at(-1);

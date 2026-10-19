@@ -33,7 +33,7 @@ function qualityMaterials() {
   })), ...S.projects.flatMap(p => p.materials.filter(m => !m.baseId).map(m => ({
     m,
     ent: 'mat',
-    label: p.short || p.name
+    label: p.name
   })))];
 }
 
@@ -501,7 +501,7 @@ const workflowProject = V.p;
 V.p = r => {
   const p = proj(r[1]);
   if (!p) return workflowProject(r);
-  if (r[2] === 'additional') return `<div class="page">${hdr('Дополнительные документы',esc(p.short||p.name),'',`<a href="#/p/${p.id}/general">Общие разделы</a>`)}<div class="card">${(p.attachments||[]).map(f=>`<p>${B(esc(f.name||f.file),'openBlob',`data-key="${esc(f.fileKey)}"`)}</p>`).join('')||'Документов пока нет.'}${B('Добавить файл','additionalAdd',`data-id="${p.id}"`)}</div></div>`;
+  if (r[2] === 'additional') return `<div class="page">${hdr('Дополнительные документы',esc(p.name),'',`<a href="#/p/${p.id}/general">Общие разделы</a>`)}<div class="card">${(p.attachments||[]).map(f=>`<p>${B(esc(f.name||f.file),'openBlob',`data-key="${esc(f.fileKey)}"`)}</p>`).join('')||'Документов пока нет.'}${B('Добавить файл','additionalAdd',`data-id="${p.id}"`)}</div></div>`;
   const box = document.createElement('div');
   box.innerHTML = workflowProject(r);
   if (r[2] === 'general') box.querySelector('.section-grid')?.insertAdjacentHTML('beforeend', tile('#/p/' + p.id + '/additional', 'Дополнительные документы', 'Прочие файлы объекта', (p.attachments || []).length + ' документов', 'folder'));

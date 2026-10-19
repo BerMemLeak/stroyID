@@ -10,6 +10,9 @@ def remap(value,mapping):
 
 def migrate(state):
  s=copy.deepcopy(state)
+ for p in s['projects']+[t['item'] for t in s.get('trash',[]) if t.get('ent')=='proj']:
+  if not (p.get('name') or '').strip():p['name']=p.get('short') or ''
+  p.pop('short',None)
  if s['meta'].get('folderModel',0)>=8:return normalize_materials(s)
  legacy=s['meta'].get('folderModel',0)<8
  for p in s['projects']:

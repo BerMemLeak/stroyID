@@ -23,7 +23,7 @@ class WorkflowDataTests(unittest.TestCase):
    self.assertTrue(doc['fileKey'].startswith('Справочники/Документы качества/'))
    self.assertEqual(len([f for f in (store.root/'Справочники').rglob('*.pdf') if 'История версий' not in f.parts]),1)
    self.assertEqual(len([f for f in (store.root/'Справочники').rglob('*.pdf') if 'История версий' in f.parts]),1)
-   self.assertFalse(list((store.root/p['short']).rglob('*.pdf')))
+   self.assertFalse(list((store.root/p['name']).rglob('*.pdf')))
    loaded['projects'][0]['materials'][0]['docIds']=[];doc['num']='78';result=store.save(loaded,result['revision'])
    self.assertEqual(result['state']['projects'][0]['materials'][1]['docIds'],['q1'])
    target=root/'portable.zip';store.portable_export(result['state'],target)

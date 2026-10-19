@@ -132,6 +132,7 @@ class Store:
  def _emit(self,key,r,parents,path):
   e={'id':uuid.uuid4().hex,'key':key,'parents':list(parents),'record':r,'path':portable_path(path),'by':self.actor,'ts':stamp()};atomic(self.events_dir/(e['id']+'.json'),encode(e));self.events[e['id']]=e
  def _title(self,r):
+  if r['kind']=='projects':return r['data'].get('name') or r['data'].get('short') or 'Объект'
   d=r['data'];return d.get('short') or d.get('name') or d.get('num') or d.get('fioShort') or d.get('code') or LABELS.get(r['field'],'Карточка')
  def _record_path(self,key,r,records):
   if key in self.paths:return self.paths[key]
