@@ -1,8 +1,19 @@
 """Cache unchanged file content using filesystem identity; preserve explicit verification."""
-import copy,json
+import copy,json,hashlib
 from pathlib import Path
 from folder_core import Store as CoreStore
 class FastFiles:
+ def _write_projection(self,path,content):
+  """Skip reading unchanged projections; external replacements invalidate by identity."""
+  from folder_core import atomic
+  path=Path(path);key=str(path);cache=self.__dict__.setdefault('_projection_cache',{})
+  signature=hashlib.sha256(content).digest()
+  try:stamp=self._stamp(path)
+  except FileNotFoundError:stamp=None
+  if stamp is not None and cache.get(key)==(stamp,signature):return
+  self.metrics['projection_reads']=self.metrics.get('projection_reads',0)+int(stamp is not None)
+  if stamp is None or path.read_bytes()!=content:atomic(path,content)
+  cache[key]=(self._stamp(path),signature)
  def _stamp(self,path):
   s=Path(path).stat();return (s.st_mtime_ns,s.st_ctime_ns,s.st_size,s.st_ino)
  def hash_file(self,path):
