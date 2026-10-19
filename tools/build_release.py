@@ -92,6 +92,8 @@ def build():
         command([sys.executable, 'tests/smoke_pdf.py'], 120, stage=report['stage'])
         report['stage'] = 'qt-word-templates'
         command([sys.executable, 'tests/smoke_word.py'], 120, stage=report['stage'])
+        report['stage'] = 'qt-aosr-quantities'
+        command([sys.executable, 'tests/smoke_quantities.py'], 150, stage=report['stage'])
         report['stage'] = 'qt-folder-workspace'
         command([sys.executable, 'tests/smoke_folders.py'], 120, stage=report['stage'])
         report['stage'] = 'qt-executions-and-frames'

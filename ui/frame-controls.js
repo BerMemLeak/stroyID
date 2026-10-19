@@ -11,12 +11,12 @@ function drawingContext(p, s, item, vol, owner = null) {
     const selected = person(id);
     return selected ? shortFio(selected.fio || selected.fioShort || '') : '';
   };
-  const cipher = record.rd || s.cipher || p.cipher || '';
+  const cipher = record.frameCipher || s.cipher || p.cipher || '';
   const code = s.code || '';
-  const designation = cipher && code && !cipher.endsWith('-' + code) && cipher !== code ? cipher + '-' + code : cipher || code;
+  const designation = record.frameCipher || s.cipher || (cipher && code && !cipher.endsWith('-' + code) && cipher !== code ? cipher + '-' + code : cipher || code);
   const ids = a ? [...new Set([...a.schemeLinks.map(l => l.id), ...a.schemes.map(x => x.id)])] : [];
   const position = ids.indexOf(item.id);
-  return {templateKey: record.frameTemplate?.fileKey || record.frameTemplateKey || '', fitContent: true, values: {
+  return {templateKey: record.frameTemplate?.fileKey || record.frameTemplateKey || '', values: {
     Шифр: designation, Объект: p.name || '', Здание: p.short || '',
     Название_Схемы: [record.num, record.name || item.name].filter(Boolean).join(' · '),
     Организация: org(per?.orgId)?.short || p.genContractor || '',
@@ -109,8 +109,20 @@ function frameWarnings(plan) {
   }));
   return [...warnings];
 }
+function drawingWarnings(plan) {
+ const warnings=new Set();
+ for(const v of plan.volumes)for(const d of v.documents){
+  if(d.type!=='Исполнительная схема'||!('sourceNumber' in d))continue;
+  const missing=[];
+  if(!d.sourceNumber?.trim())missing.push('номер схемы');
+  const title=(d.sourceTitle||'').trim();
+  if(!title||/^(?:новая )?исполнительная схема$/i.test(title))missing.push('полное название схемы');
+  if(missing.length)warnings.add((d.name||'Схема')+': '+missing.join(', '));
+ }
+ return [...warnings];
+}
 function drawingRecord(s,id){return resourceList(s).find(x=>x.id===id);}
-function drawingPanel(p,s,item){const r=item.record,acts=s.acts.filter(a=>a.schemes.some(x=>x.id===item.id)||a.schemeLinks.some(l=>l.id===item.id));return `<div class="card"><h3>Реквизиты схемы</h3><label>Номер схемы<input data-frame-field="num" data-s="${s.id}" data-x="${item.id}" value="${esc(r.num || '')}"></label><label>Название схемы<input data-frame-field="name" data-s="${s.id}" data-x="${item.id}" value="${esc(r.name || item.name)}"></label><label>Стадия (пусто — из системы)<input data-frame-field="stage" data-s="${s.id}" data-x="${item.id}" value="${esc(r.stage ?? '')}"></label></div>`+frameSignerControls(s,item)+`<div class="card"><h3>Рамка исполнительной схемы</h3><p><b>${esc(item.name)}</b> · ${esc(r.file||'PDF не загружен')}</p><p class="small mut">ГОСТ Р 21.101-2026: форма 3, основная надпись 185 × 55 мм; поле подшивки 20 мм, остальные поля 5 мм. Формат и ориентация каждого листа берутся из исходного PDF. Исходный файл сохраняется.</p><label class="row"><input type="checkbox" data-a="drawingToggle" data-s="${s.id}" data-x="${item.id}" ${r.frameEnabled?'checked':''}> Добавлять рамку при сборке PDF</label><p class="small mut">Если рамка уже есть на чертеже, оставьте эту настройку выключенной. Чертёж вписывается в свободную область между приложением и штампом без обрезки. Размер листа сохраняется.</p><div class="row mt">${B('Сохранить HTML-шаблон ГОСТ','drawingTemplateSave')}${B('Подгрузить свой HTML-шаблон','drawingTemplatePick',`data-s="${s.id}" data-x="${item.id}"`)}${(r.frameTemplate?.fileKey||r.frameTemplateKey)?B('Вернуть шаблон ГОСТ','drawingTemplateReset',`data-s="${s.id}" data-x="${item.id}"`):''}</div><p class="small mut">${esc(r.frameTemplateName||'Встроенный шаблон ГОСТ')}. Теги: {{Объект}}, {{Шифр}}, {{Система}}, {{АОСР}}, {{Работы}}, {{Выполнение}}, {{Лист}}, {{Листов}}. Изменяйте текст и оформление SVG внутри HTML.</p><div class="row mt"><label>Лист <input id="drawing-page" type="number" min="1" max="${r.pages||1}" value="1" style="width:70px"></label><label>Связанный АОСР <select id="drawing-act" data-s="${s.id}" data-x="${item.id}"><option value="">Автоматически по выполнению</option>${acts.map(a=>`<option value="${a.id}" ${a.id===r.frameActId?'selected':''}>${esc(a.num)}</option>`).join('')}</select></label>${B('Показать настоящий лист','drawingPreview',`data-s="${s.id}" data-x="${item.id}"`,'pri')}</div><div id="drawing-result" class="mt"><p class="small mut">Нажмите «Показать настоящий лист», чтобы проверить рамку на загруженном чертеже.</p></div></div>`;}
+function drawingPanel(p,s,item){const r=item.record,acts=s.acts.filter(a=>a.schemes.some(x=>x.id===item.id)||a.schemeLinks.some(l=>l.id===item.id));return `<div class="card"><h3>Реквизиты схемы</h3><label>Шифр в штампе (пусто — из системы)<input data-frame-field="frameCipher" data-s="${s.id}" data-x="${item.id}" value="${esc(r.frameCipher || '')}"></label><label>Номер схемы<input data-frame-field="num" data-s="${s.id}" data-x="${item.id}" value="${esc(r.num || '')}"></label><label>Название схемы<input data-frame-field="name" data-s="${s.id}" data-x="${item.id}" value="${esc(r.name || item.name)}"></label><label>Стадия (пусто — из системы)<input data-frame-field="stage" data-s="${s.id}" data-x="${item.id}" value="${esc(r.stage ?? '')}"></label></div>`+frameSignerControls(s,item)+`<div class="card"><h3>Рамка исполнительной схемы</h3><p><b>${esc(item.name)}</b> · ${esc(r.file||'PDF не загружен')}</p><p class="small mut">ГОСТ Р 21.101-2026: форма 3, основная надпись 185 × 55 мм; поле подшивки 20 мм, остальные поля 5 мм. Формат и ориентация каждого листа берутся из исходного PDF. Исходный файл сохраняется.</p><label class="row"><input type="checkbox" data-a="drawingToggle" data-s="${s.id}" data-x="${item.id}" ${r.frameEnabled?'checked':''}> Добавлять рамку при сборке PDF</label><p class="small mut">Если рамка уже есть на чертеже, оставьте эту настройку выключенной. Рамка накладывается поверх исходного листа без проверки существующего оформления. Масштаб и положение чертежа сохраняются.</p><div class="row mt">${B('Сохранить HTML-шаблон ГОСТ','drawingTemplateSave')}${B('Подгрузить свой HTML-шаблон','drawingTemplatePick',`data-s="${s.id}" data-x="${item.id}"`)}${(r.frameTemplate?.fileKey||r.frameTemplateKey)?B('Вернуть шаблон ГОСТ','drawingTemplateReset',`data-s="${s.id}" data-x="${item.id}"`):''}</div><p class="small mut">${esc(r.frameTemplateName||'Встроенный шаблон ГОСТ')}. Теги: {{Объект}}, {{Шифр}}, {{Система}}, {{АОСР}}, {{Работы}}, {{Выполнение}}, {{Лист}}, {{Листов}}. Изменяйте текст и оформление SVG внутри HTML.</p><div class="row mt"><label>Лист <input id="drawing-page" type="number" min="1" max="${r.pages||1}" value="1" style="width:70px"></label><label>Связанный АОСР <select id="drawing-act" data-s="${s.id}" data-x="${item.id}"><option value="">Автоматически по выполнению</option>${acts.map(a=>`<option value="${a.id}" ${a.id===r.frameActId?'selected':''}>${esc(a.num)}</option>`).join('')}</select></label>${B('Показать настоящий лист','drawingPreview',`data-s="${s.id}" data-x="${item.id}"`,'pri')}</div><div id="drawing-result" class="mt"><p class="small mut">Нажмите «Показать настоящий лист», чтобы проверить рамку на загруженном чертеже.</p></div></div>`;}
 A.drawingToggle=(d,el)=>{if(!guard()){el.checked=!el.checked;return;}drawingRecord(getEnt('sys',d.s),d.x).record.frameEnabled=el.checked;commit('Изменена рамка схемы');};
 A.drawingEdit=d=>{const {p,o:s}=ctx('sys',d.s),item=drawingRecord(s,d.x);modal('Рамка и предпросмотр',drawingPanel(p,s,item),[{l:'Готово',c:'pri'}],'wide');};
 A.drawingTemplateSave=async()=>{try{await nativeCall('saveFrameTemplate');}catch(e){toast(e.message);}};
@@ -129,13 +141,13 @@ document.addEventListener('change', event => {
   if (!el.dataset.frameField || !guard()) return;
   const r = drawingRecord(getEnt('sys', el.dataset.s), el.dataset.x).record;
   const value = el.value.trim();
-  if (el.dataset.frameField === 'stage' && !value) delete r.stage;
+  if (['stage','frameCipher'].includes(el.dataset.frameField) && !value) delete r[el.dataset.frameField];
   else r[el.dataset.frameField] = value;
   commit('Изменены реквизиты рамки');
 });
 
 function confirmFrameWarnings(plans) {
-  const warnings = [...new Set(plans.flatMap(frameWarnings))];
+  const warnings = [...new Set(plans.flatMap(plan=>[...frameWarnings(plan),...drawingWarnings(plan)]))];
   if (!warnings.length) return Promise.resolve(true);
   return new Promise(resolve => {
     const root = $('#modal-root');
@@ -143,7 +155,7 @@ function confirmFrameWarnings(plans) {
     const observer = new MutationObserver(() => {
       if (!root.querySelector('[data-frame-warning]')) done(false);
     });
-    modal('Не выбраны подписанты рамки', `<div data-frame-warning><p>Ячейки следующих подписантов останутся пустыми:</p><div style="white-space:pre-wrap">${esc(warnings.join('\n'))}</div></div>`, [
+    modal('Проверьте реквизиты схем', `<div data-frame-warning><p>Не заполнены следующие поля:</p><div style="white-space:pre-wrap">${esc(warnings.join('\n'))}</div></div>`, [
       {l: 'Вернуться', f: () => done(false)},
       {l: 'Продолжить с пустыми ячейками', c: 'pri', f: () => done(true)}
     ]);

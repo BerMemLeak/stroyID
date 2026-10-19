@@ -18,6 +18,8 @@ const WORD_SECTIONS=[
  ['other','Иной документ','Другие шаблоны','Дополнительно']
 ];
 const WORD_FIELDS=[
+ ['Примечание_Акта','Карточка акта'],
+ ...DOC_ROLES.flatMap((role,i)=>['Полномочия','НРС','Реквизиты_Организации','Адрес_Организации','СРО_Организации'].map(key=>[key+'_Подписант_'+(i+1),role])),
  ['Том','Название выбранного тома'],['Год','Год сборки'],['Проектировщик','Проектная организация'],
  ['Эксплуатирующая_Организация','Карточка объекта'],['Название_Документа','Карточка документа'],
  ['Номер_Документа','Карточка документа'],['Дата_Документа','Карточка документа'],
@@ -67,11 +69,17 @@ function wordContext(p,vol={},id='title'){
   Документы_Качества:(m?mDocs(m):a?a.materials.map(x=>pMat(p,x)).filter(Boolean).flatMap(mDocs):[]).map(x=>x.type+' № '+(x.num||'')+' от '+fmtD(x.date)).join('; '),
   Примечание:record?.note||k?.note||'',Содержание:j?j.rows.map((r,i)=>(i+1)+'. '+j.cols.map((c,k)=>c+': '+(r.c[k]||'')).join('; ')).join('\n'):'',Реестр:''});
  if(k){values.Номер_Акта=k.num||'';values.Дата_АОСР=fmtD(k.date);}
+ values.Примечание_Акта=a?.note||'';
  const sp=vol.sp||(s&&a?spOf(s,a.subs[0]):s?.subprofiles?.[0]);
  for(let i=0;i<DOC_ROLES.length;i++){
   const per=a&&sp?person(signer(a,sp,i)):person(sp?.signers?.['r'+i]),organization=org(per?.orgId);
   values['ФИО_Подписант_'+(i+1)]=per?.fioShort||per?.fio||'';values['Должность_Подписант_'+(i+1)]=per?.position||'';
   values['Организация_Подписант_'+(i+1)]=organization?.full||organization?.short||'';
+  values['Полномочия_Подписант_'+(i+1)]=per?.authority||'';
+  values['НРС_Подписант_'+(i+1)]=per?.nrs ? 'НРС '+per.nrs : '';
+  values['Реквизиты_Организации_Подписант_'+(i+1)]=[organization?.full||organization?.short,organization?.ogrn?'ОГРН '+organization.ogrn:'',organization?.inn?'ИНН '+organization.inn:''].filter(Boolean).join(', ');
+  values['Адрес_Организации_Подписант_'+(i+1)]=organization?.address||'';
+  values['СРО_Организации_Подписант_'+(i+1)]=organization?.sro||'';
   values['Подписант_'+(i+1)]=[per?.position,per?.fioShort||per?.fio,organization?.short,per?.authority].filter(Boolean).join(', ');
  }
  values.ФИО_Прораб=values.ФИО_Подписант_2;values.Должность_Прораб=values.Должность_Подписант_2;

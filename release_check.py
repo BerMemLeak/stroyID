@@ -75,8 +75,8 @@ def run(report_path):
                   const p=S.projects[0];A.newSystem({p:p.id});
                   document.querySelector('input[name=ns][value="ВК"]').checked=true;MB[1].f();
                   const s=p.systems[0];A.newAct({s:s.id});MB[1].f();
-                  const a=s.acts[0];a.scan={file:ASSET.name,fileKey:ASSET.id,pages:ASSET.pages};
-                  Object.assign(s.scheme,{file:ASSET.name,fileKey:ASSET.id,pages:ASSET.pages,frameEnabled:false});
+                  const a=s.acts[0];a.quantityEnabled=false;a.scan={file:ASSET.name,fileKey:ASSET.id,pages:ASSET.pages};
+                  Object.assign(s.scheme,{num:'ИС-01',name:'План трубопроводов',file:ASSET.name,fileKey:ASSET.id,pages:ASSET.pages,frameEnabled:false});
                   S.meta.name='До восстановления';save();await desktopFlush(true);await desktopFlush(true);
                   const b=await backup('Проверка упакованного приложения');
                   S.meta.name='После изменения';save();await desktopFlush(true);
