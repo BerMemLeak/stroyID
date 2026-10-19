@@ -72,6 +72,13 @@ def ready(value):
       if(!document.querySelector('[data-a="assemblyRun"]'))throw Error('No PDF button');
       // Source identity and selected sheets are stable across both placement modes;
       // internal export IDs differ for a shared-section item and an act attachment.
+      const savedLinks=a.schemeLinks,savedOwned=other.schemes;a.schemeLinks=[];other.schemes=[];
+      const withoutSchemes=pdfPlan(p,[vol]).volumes[0].documents;
+      if(withoutSchemes.some(d=>d.block==='schemes'||d.sourceBlock==='schemes'||d.sourceRecordId==='system'))throw Error('Optional empty scheme leaked into PDF');
+      if(check(p).W.some(x=>x.t.includes('не загружена исполнительная схема системы')))throw Error('System still requires a scheme');
+      a.schemeLinks=[{id:'system',from:1,to:1}];
+      if(!check(p).E.some(x=>x.t.includes('у связанной схемы нет файла')))throw Error('Broken explicit scheme link must still be reported');
+      a.schemeLinks=savedLinks;other.schemes=savedOwned;
       const documents=pdfPlan(p,[vol]).volumes[0].documents;
       const links=documents.filter(x=>x.kind==='pdf'&&x.sourceRecordId==='outside');
       const link=links[0];
