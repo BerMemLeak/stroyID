@@ -5,12 +5,91 @@ from pathlib import Path
 from pypdf import PdfWriter, PdfReader
 from pypdf.generic import RectangleObject
 from PySide6.QtWidgets import QApplication
-from drawing_frame import framed_reader, template_svg, preview, MM
+from drawing_frame import framed_reader, template_svg, preview, frame_signer_values, frame_sheet_values, MM
 from folder_store import Store
 from pdf_export import prepare_export, write_export
 APP=QApplication.instance() or QApplication([])
 
 class DrawingFrameTests(unittest.TestCase):
+ def test_ordered_signer_slots_and_empty_unused_cells(self):
+  rows=[{'role':'Разработал','name':'Морозкин Е. Е.'}, {'role':'Проверил','name':'Щербак О. О.'}]
+  values=frame_signer_values({'signerRows':rows},{'Дата':'20.05.2025'})
+  self.assertEqual(values['Роль_1'],'Разработал');self.assertEqual(values['Подписант_2'],'Щербак О. О.')
+  self.assertEqual(values['Дата_Подписанта_1'],'20.05.2025')
+  for i in range(3,7):
+   for key in ('Роль','Подписант','Дата_Подписанта'):self.assertEqual(values[f'{key}_{i}'],'')
+  blank=frame_signer_values({'signerRows':[]},{'Разработал':'Старое имя','Дата':'20.05.2025'})
+  self.assertEqual(blank['Подписант_1'],'');self.assertEqual(blank['Дата_Подписанта_1'],'')
+
+ def test_signer_limit_rejects_overflow_and_malformed_rows(self):
+  for rows in ([{}]*7,{},[None],[{'role':7}],[{'name':[]} ]):
+   with self.assertRaises(ValueError):frame_signer_values({'signerRows':rows},{})
+  self.assertEqual(frame_signer_values({'signerRows':[{}]*6},{})['Роль_6'],'')
+
+ def test_all_six_signer_rows_in_real_pdf_preserve_order_and_duplicate_roles(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   rows=[{'role':role,'name':'Участник '+str(i+1)} for i,role in enumerate(
+    ['Разработал','Рук. проекта','Производ. работ','Строит. контр.','Строит. контр.','Утвердил'])]
+   result=framed_reader(PdfReader(io.BytesIO(self.source())),[1],
+    {'signerRows':rows,'values':{'Дата':'20.05.2025'}},Store(Path(tmp)/'db'))
+   text=''.join(result.pages[0].extract_text().split())
+   for i in range(6):self.assertIn('Участник'+str(i+1),text)
+   self.assertEqual(text.count('Строит.контр.'),2)
+   self.assertEqual(text.count('20.05.2025'),6)
+   self.assertLess(text.index('Участник1'),text.index('Участник6'))
+
+ def test_legacy_signers_keep_original_cells(self):
+  values=frame_signer_values({}, {'Разработал':'Первый','Проверил':'Второй','Нормоконтроль':'Пятый'})
+  self.assertEqual(values['Подписант_1'],'Первый');self.assertEqual(values['Подписант_2'],'Второй')
+  self.assertEqual(values['Роль_3'],'');self.assertEqual(values['Подписант_5'],'Пятый')
+
+ def test_custom_template_must_support_configured_row_slots(self):
+  from drawing_frame import frame_page
+  writer=PdfWriter();page=writer.add_blank_page(420*MM,297*MM)
+  with self.assertRaisesRegex(ValueError,'не поддерживает выбранные строки'):
+   frame_page(page,{'signerRows':[{'role':'Разработал','name':'Иванов'}]},
+    template='<svg xmlns="http://www.w3.org/2000/svg"><text>{{Разработал}}</text></svg>')
+
+
+ def test_caption_uses_only_explicit_sheet_place(self):
+  cfg={'captionEnabled':True,'sheetPlaces':{'3':'на 3-м этаже в осях 3–21/Ж–Ф, отм. +7.000'}}
+  base={'Номер_Схемы':'АР-1.1','Наименование_Работ':'Разборка деревянных плинтусов','Место_Работ':'ОБЩЕЕ МЕСТО АКТА'}
+  third=frame_sheet_values(cfg,3,dict(base))
+  self.assertEqual(third['Надпись_Схемы'],'Исполнительная схема № АР-1.1.3 «Разборка деревянных плинтусов на 3-м этаже в осях 3–21/Ж–Ф, отм. +7.000»')
+  blank=frame_sheet_values(cfg,2,dict(base))
+  self.assertEqual(blank['Надпись_Схемы'],'Исполнительная схема № АР-1.1.2 «Разборка деревянных плинтусов»')
+  self.assertEqual(blank['Место_Выполнения_Листа'],'')
+  self.assertEqual(base['Место_Работ'],'ОБЩЕЕ МЕСТО АКТА')
+  self.assertEqual(frame_sheet_values({},1,dict(base))['Надпись_Схемы'],'')
+
+ def test_selected_source_sheets_keep_their_numbers_and_places(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   reader=PdfReader(io.BytesIO(self.source()));store=Store(Path(tmp)/'db')
+   cfg={'captionEnabled':True,'sheetPlaces':{'2':'ЭТАЖ-ДВА','3':'ЭТАЖ-ТРИ'},
+    'values':{'Номер_Схемы':'АР-1.1','Наименование_Работ':'Разборка плинтусов','Место_Работ':'ОБЩЕЕ-МЕСТО'}}
+   result=framed_reader(reader,[2,0,1],cfg,store)
+   for page,number,place in zip(result.pages,[3,1,2],['ЭТАЖ-ТРИ','','ЭТАЖ-ДВА']):
+    text=''.join(page.extract_text().split())
+    expected='Исполнительнаясхема№АР-1.1.'+str(number)+'«Разборкаплинтусов'+place+'»'
+    self.assertIn(expected,text);self.assertNotIn('ОБЩЕЕ-МЕСТО',text)
+    if place:self.assertNotIn('ЭТАЖ-ДВА' if place=='ЭТАЖ-ТРИ' else 'ЭТАЖ-ТРИ',text)
+    else:self.assertNotIn('ЭТАЖ-',text)
+   self.assertNotIn('Исполнительная схема',reader.pages[0].extract_text())
+   self.assertEqual(reader.pages[2].rotation,90)
+
+ def test_custom_frame_gets_automatic_caption_if_tag_is_absent(self):
+  from drawing_frame import frame_page
+  writer=PdfWriter();page=writer.add_blank_page(420*MM,297*MM)
+  custom='<svg xmlns="http://www.w3.org/2000/svg" width="{{Ширина}}mm" height="{{Высота}}mm" viewBox="0 0 {{Ширина}} {{Высота}}"></svg>'
+  result=frame_page(page,{'captionEnabled':True,'sheetPlaces':{'1':'этаж 1'},
+   'values':{'Номер_Схемы':'АР-1','Наименование_Работ':'Работы'}},template=custom)
+  self.assertIn('Исполнительнаясхема№АР-1.1«Работыэтаж1»',''.join(result.extract_text().split()))
+
+ def test_invalid_sheet_place_data_is_rejected(self):
+  for places in ([],42,{'1':None},{'1':['этаж']}):
+   with self.assertRaises(ValueError):
+    frame_sheet_values({'captionEnabled':True,'sheetPlaces':places},1,{})
+
  def source(self):
   writer=PdfWriter();writer.add_blank_page(210*MM,297*MM);writer.add_blank_page(420*MM,297*MM);writer.add_blank_page(297*MM,420*MM).rotate(90)
   p=writer.add_blank_page(500*MM,400*MM);p.cropbox=RectangleObject([10*MM,20*MM,430*MM,317*MM])
