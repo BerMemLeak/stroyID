@@ -10,6 +10,27 @@ from PySide6.QtPdf import QPdfDocument
 
 TEMPLATE=Path(__file__).parent/'ui'/'frame-templates'/'gost-form3.html'
 MM=72/25.4
+FRAME_SIGNER_LIMIT=6
+
+
+def frame_signer_values(config, values):
+    """Populate the six physical slots; legacy exports keep their original cells."""
+    rows=config.get('signerRows')
+    if rows is None:
+        rows=[{'role':'Разработал','name':values.get('Разработал','')},
+              {'role':'Проверил','name':values.get('Проверил','')}, {}, {},
+              {'role':'Н. контр.','name':values.get('Нормоконтроль','')}]
+    if not isinstance(rows,list) or len(rows)>FRAME_SIGNER_LIMIT:
+        raise ValueError(f'В штампе доступно не более {FRAME_SIGNER_LIMIT} строк подписантов')
+    for i in range(FRAME_SIGNER_LIMIT):
+        row=rows[i] if i<len(rows) else {}
+        if not isinstance(row,dict) or not all(isinstance(row.get(key,''),str) for key in ('role','name')):
+            raise ValueError('Некорректная строка подписанта рамки')
+        role,name=row.get('role','').strip(),row.get('name','').strip()
+        values[f'Роль_{i+1}']=role
+        values[f'Подписант_{i+1}']=name
+        values[f'Дата_Подписанта_{i+1}']=values.get('Дата','') if role or name else ''
+    return values
 
 def resolve_frame_font(config, store=None):
     """Never silently substitute the requested production drafting font."""
@@ -117,7 +138,17 @@ def frame_page(page, config, *, sheet=1, total=1, template=None):
     values.setdefault('Основание_Приложения', 'К акту №' if values['АОСР'] else 'К разделу')
     values.setdefault('Шифр_Приложения', values['АОСР'])
     values.setdefault('Дата_Приложения', values['Дата_Акта'])
+    frame_signer_values(config,values)
     source=template or TEMPLATE.read_text('utf-8')
+    if template and config.get('signerRows') is not None:
+        # Old custom SVGs hard-code roles and cannot represent ordered custom
+        # rows. Require matching slots instead of silently printing wrong people.
+        for i,row in enumerate(config['signerRows'],1):
+            if not row.get('role','').strip() and not row.get('name','').strip():
+                continue
+            if any('{{'+key+'_'+str(i)+'}}' not in source for key in ('Роль','Подписант')):
+                raise ValueError('HTML-шаблон рамки не поддерживает выбранные строки. '
+                                 'Используйте встроенный шаблон или добавьте теги {{Роль_'+str(i)+'}} и {{Подписант_'+str(i)+'}}.')
     svg=template_svg(source,values,config.get('_resolvedFont') or resolve_frame_font(config))
     renderer=QSvgRenderer(QByteArray(svg))
     if not renderer.isValid(): raise ValueError('Некорректный SVG рамки')

@@ -25,26 +25,24 @@ def ready(value):
  Object.assign(a,{num:'АОСР-042',date:'2026-10-18',schemeLinks:[{id:'system',from:1,to:3}]});
  s.acts=[a];const v=volumeList(p).find(v=>v.s?.id===s.id),item=drawingRecord(s,'system');
  const choose=(selector,value)=>{const el=document.querySelector(selector);assert(el,'Missing signer control '+selector);el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}));};
+ s.frameSigners={checked:people[1].id,controlled:people[2].id,developed:people[1].id};
+ s.scheme.frameSigners={checked:people[0].id,controlled:''}; // Ignore obsolete reviewer overrides.
  history.replaceState(null,'','#/s/'+s.id+'/params');render();
- assert(!document.querySelector('[data-frame-signer="developed"]'),'System must not default developer');
- choose('[data-frame-signer="checked"]',people[1].id);choose('[data-frame-signer="controlled"]',people[2].id);
- s.frameSigners.developed=people[1].id;
- s.scheme.frameSigners={checked:people[0].id,controlled:''}; // Legacy overrides must not hide system settings.
- assert(document.querySelector('[data-f="sectionDate"]').value==='2026-09-15','Section date field');
+ assert(document.querySelectorAll('[data-frame-row-field="personId"]').length===3,'Legacy rows are available in system editor');
  const old=A.drawingPreview;A.drawingPreview=()=>{};A.drawingEdit({s:s.id,x:'system'});A.drawingPreview=old;
- assert(document.querySelectorAll('.dlg [data-frame-signer]').length===1,'Only developer belongs in scheme editor');
- assert(document.querySelector('.dlg [data-frame-signer="developed"]').value==='','Developer must start empty');
- let cfg=drawingContext(p,s,item,v);assert(cfg.values.Разработал==='','No implicit developer from system or execution');
- assert(cfg.values.Проверил===shortFio(people[1].fio)&&cfg.values.Нормоконтроль===shortFio(people[2].fio),'System signers must win over legacy overrides');
- choose('.dlg [data-frame-signer="developed"]',people[0].id);
+ assert(document.querySelectorAll('.dlg [data-frame-row-field]:disabled').length===6,'Inherited rows must be read-only until override');
+ let cfg=drawingContext(p,s,item,v);assert(cfg.values.Разработал==='','No implicit legacy developer from system or execution');
+ assert(cfg.values.Проверил===shortFio(people[1].fio)&&cfg.values.Нормоконтроль===shortFio(people[2].fio),'System legacy signers must win over obsolete overrides');
+ document.querySelector('.dlg [data-a="frameRowsOverride"]').click();
+ choose('.dlg [data-frame-row-field="personId"][data-row="0"]',people[0].id);
  cfg=drawingContext(p,s,item,v);assert(cfg.values.Разработал===shortFio(people[0].fio),'Explicit drawing developer');
  assert(cfg.values.Шифр==='2026-00000-01-0-ВК1'&&cfg.values.Система===s.name&&cfg.values.Стадия==='Р','Stamp field mapping');assert(cfg.values.Дата==='18.10.2026','Signature date from act');assert(cfg.values.АОСР===a.num&&cfg.values.Номер_Приложения==='1','Full source act resolution');
  choose('.dlg [data-frame-field="appNo"]','7');assert(drawingContext(p,s,item,v).values.Номер_Приложения==='7','Manual attachment override');
  choose('.dlg [data-frame-field="appNo"]','');assert(drawingContext(p,s,item,v).values.Номер_Приложения==='1','Clear override restores automatic number');
  const originalEntries=actAttachmentEntries;actAttachmentEntries=(act,section)=>[{name:'Другой документ',pages:1},...originalEntries(act,section)];
  assert(drawingContext(p,s,item,v).values.Номер_Приложения==='2','Number must use full AOSR attachment list');actAttachmentEntries=originalEntries;
- choose('.dlg [data-frame-signer="developed"]','');assert(drawingContext(p,s,item,v).values.Разработал==='','Cleared developer must remain empty');
- choose('.dlg [data-frame-signer="developed"]',people[0].id);closeModal();
+ choose('.dlg [data-frame-row-field="personId"][data-row="0"]','');assert(drawingContext(p,s,item,v).values.Разработал==='','Cleared developer must remain empty');
+ choose('.dlg [data-frame-row-field="personId"][data-row="0"]',people[0].id);closeModal();
  s.scheme.rd='Рабочая документация «Система водоснабжения», шифр ДРУГОЙ';
  assert(!drawingContext(p,s,item,v).values.Шифр.includes('Рабочая документация'),'RD description leaked into cipher');
  s.scheme.frameCipher='Отдельный-01';assert(drawingContext(p,s,item,v).values.Шифр==='Отдельный-01','Explicit frame cipher');delete s.scheme.frameCipher;
@@ -73,8 +71,32 @@ def ready(value):
  s.acts=[a];delete s.scheme.frameActId;p.exportMode='custom';p.exportProfile='';
  const docs=assemblyActPlan(p,a.id,['schemes']).volumes.flatMap(v=>v.documents).filter(d=>d.id.startsWith('framed:system:'));assert(docs.length===1&&docs.every(d=>d.frame.values.АОСР===a.num),'Assembly lost attachment context');
  p.exportIssuer=S.lib.orgs[0].id;assert(drawingContext(p,s,item,v).values.Организация===(S.lib.orgs[0].full||S.lib.orgs[0].short),'Export company');
- save();await desktopFlush();const loaded=(await nativeCall('load')).state.projects[0].systems.find(x=>x.id===s.id);assert(loaded.sectionDate==='2026-09-15'&&loaded.frameSigners.checked===people[1].id&&loaded.scheme.frameSigners.developed===people[0].id&&loaded.stage==='Р'&&loaded.scheme.num==='ВК1-1','Frame settings lost on disk');
+ save();await desktopFlush();const loaded=(await nativeCall('load')).state.projects[0].systems.find(x=>x.id===s.id);assert(loaded.sectionDate==='2026-09-15'&&loaded.frameSigners.checked===people[1].id&&loaded.scheme.frameRows[0].personId===people[0].id&&loaded.stage==='Р'&&loaded.scheme.num==='ВК1-1','Frame settings lost on disk');
+ // Two rows need no norm-control warning, repeated roles and all six slots work.
+ s.frameRows=[{role:'Разработал',personId:people[0].id},{role:'Проверил',personId:people[1].id}];
+ delete s.scheme.frameRows;delete s.scheme.frameSigners;
+ cfg=drawingContext(p,s,item,v,a);assert(cfg.signerRows.length===2&&frameWarnings({volumes:[{documents:[{name:'Схема',frame:cfg}]}]}).length===0,'Two complete rows must not require norm-control');
+ A.drawingEdit({s:s.id,x:'system'});document.querySelector('.dlg [data-a="frameRowsOverride"]').click();
+ for(let i=0;i<4;i++)document.querySelector('.dlg [data-a="frameRowAdd"]').click();
+ assert(s.scheme.frameRows.length===6&&document.querySelector('.dlg [data-a="frameRowAdd"]').disabled,'Physical six-row limit');
+ A.frameRowAdd({s:s.id,x:'system'});assert(s.scheme.frameRows.length===6,'Limit must also be enforced by action handler');
+ const roleInput=document.querySelector('.dlg [data-frame-row-field="role"][data-row="2"]');roleInput.focus();
+ roleInput.value='Рук. проекта';roleInput.dispatchEvent(new Event('input',{bubbles:true}));
+ assert(roleInput.isConnected&&document.activeElement===roleInput,'Role typing must preserve focus');
+ ['Производ. работ','Строит. контроль','Строит. контроль'].forEach((role,i)=>{
+   const el=document.querySelector('.dlg [data-frame-row-field="role"][data-row="'+(i+3)+'"]');el.value=role;el.dispatchEvent(new Event('input',{bubbles:true}));
+ });
+ for(let i=2;i<6;i++)choose('.dlg [data-frame-row-field="personId"][data-row="'+i+'"]',people[i%people.length].id);
+ cfg=drawingContext(p,s,item,v,a);assert(cfg.signerRows.length===6&&cfg.signerRows[4].role===cfg.signerRows[5].role,'Repeated roles must remain separate');
+ document.querySelector('.dlg [data-a="frameRowMove"][data-row="2"][data-step="-1"]').click();
+ assert(s.scheme.frameRows[1].role==='Рук. проекта'&&s.frameRows.length===2,'Reordering must not mutate inherited system rows');
+ save();await desktopFlush();const persisted=(await nativeCall('load')).state.projects[0].systems.find(x=>x.id===s.id);
+ assert(persisted.scheme.frameRows.length===6&&persisted.scheme.frameRows[1].role==='Рук. проекта','Ordered rows lost on disk');
  const result=await nativeCall('previewDrawing',{key:ASSET,page:2,frame:drawingContext(p,s,item,v,a)});assert(result.pages===3&&result.image.startsWith('data:image/png'),'Native multi-page preview');
+ document.querySelector('.dlg [data-a="frameRowRemove"][data-row="5"]').click();assert(s.scheme.frameRows.length===5&&!document.querySelector('.dlg [data-a="frameRowAdd"]').disabled,'Deleting must free a slot');
+ document.querySelector('.dlg [data-a="frameRowsInherit"]').click();assert(!s.scheme.frameRows&&frameSignerRows(s,item).length===2,'Return to system rows');
+ s.frameRows[0].personId=people[2].id;assert(drawingContext(p,s,item,v,a).signerRows[0].name===shortFio(people[2].fio),'Inheritance must follow future system changes');
+ closeModal();
  const el={checked:false};A.drawingToggle({s:s.id,x:'system'},el);assert(!pdfSources(p,v).get('ss'+s.id).frame,'Frame toggle ignored');
  
  const warningPlan={volumes:[{documents:[{name:'Схема',frame:{values:{Разработал:'',Проверил:'',Нормоконтроль:''}}}]}]};
@@ -91,7 +113,7 @@ def receive(value):
  if result.get('error'):fail(result['error']);return
  try:
   assert not window.page.console_errors,window.page.console_errors
-  stage=2;timer.stop();print('PASS: explicit drawing developer, automatic system reviewers, legacy override handling, persistence, act context, native preview and warnings');window.close()
+  stage=2;timer.stop();print('PASS: configurable frame rows, six-slot limit, inheritance, migration, typing focus, persistence, native preview and act context');window.close()
  except Exception:fail(traceback.format_exc())
 def poll():
  if stage==0:window.page.runJavaScript('window.desktopReady',ready)
