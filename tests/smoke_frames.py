@@ -36,6 +36,28 @@ def ready(value):
  document.querySelector('.dlg [data-a="frameRowsOverride"]').click();
  choose('.dlg [data-frame-row-field="personId"][data-row="0"]',people[0].id);
  cfg=drawingContext(p,s,item,v);assert(cfg.values.Разработал===shortFio(people[0].fio),'Explicit drawing developer');
+
+ // AOSR place is editable and independent from per-source-sheet places.
+ a.place='Общее место АОСР';a.works='Разборка деревянных плинтусов';
+ const savedNumber=s.scheme.num;s.scheme.num='';
+ let sheetConfig=drawingContext(p,s,item,v,a);
+ assert(drawingSheetCaption(sheetConfig,3)==='Исполнительная схема № '+a.num+'.3 «Разборка деревянных плинтусов»','Empty sheet place must not inherit AOSR place');
+ const sheetPlace=document.querySelector('.dlg [data-sheet-place="3"]');
+ assert(sheetPlace,'Per-sheet place editor missing');sheetPlace.focus();sheetPlace.value='на 3-м этаже в осях 3–21/Ж–Ф, отм. +7.000';
+ sheetPlace.dispatchEvent(new Event('input',{bubbles:true}));
+ assert(sheetPlace.isConnected&&document.activeElement===sheetPlace,'Sheet place entry lost focus');
+ sheetConfig=drawingContext(p,s,item,v,a);
+ assert(drawingSheetCaption(sheetConfig,3).includes(a.num+'.3 «Разборка деревянных плинтусов на 3-м этаже'),'Sheet caption not generated from tags');
+ assert(!drawingSheetCaption(sheetConfig,2).includes('3-м этаже')&&!drawingSheetCaption(sheetConfig,2).includes(a.place),'Sheet places leaked');
+ assert(document.querySelector('.dlg [data-sheet-caption="3"]').textContent===drawingSheetCaption(sheetConfig,3),'Live caption differs from frame data');
+ save();await desktopFlush();
+ const savedSheets=(await nativeCall('load')).state.projects[0].systems.find(x=>x.id===s.id).scheme.sheetPlaces;
+ assert(savedSheets['3']===sheetPlace.value&&!savedSheets['2'],'Per-sheet places were not saved');
+ sheetPlace.value='';sheetPlace.dispatchEvent(new Event('input',{bubbles:true}));
+ assert(!s.scheme.sheetPlaces['3']&&!drawingSheetCaption(drawingContext(p,s,item,v,a),3).includes('3-м этаже'),'Clearing must omit sheet place');
+ sheetPlace.value='на 3-м этаже';sheetPlace.dispatchEvent(new Event('input',{bubbles:true}));
+ s.scheme.num=savedNumber;
+
  assert(cfg.values.Шифр==='2026-00000-01-0-ВК1'&&cfg.values.Система===s.name&&cfg.values.Стадия==='Р','Stamp field mapping');assert(cfg.values.Дата==='18.10.2026','Signature date from act');assert(cfg.values.АОСР===a.num&&cfg.values.Номер_Приложения==='1','Full source act resolution');
  choose('.dlg [data-frame-field="appNo"]','7');assert(drawingContext(p,s,item,v).values.Номер_Приложения==='7','Manual attachment override');
  choose('.dlg [data-frame-field="appNo"]','');assert(drawingContext(p,s,item,v).values.Номер_Приложения==='1','Clear override restores automatic number');

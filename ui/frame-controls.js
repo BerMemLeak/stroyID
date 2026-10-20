@@ -20,8 +20,11 @@ function drawingContext(p, s, item, vol, owner = null) {
       !s.acts.some(act => act.schemeLinks.some(l => l.id === x.id))).findIndex(x => x.id === item.id);
   const date = a?.date || (!a ? s.sectionDate : '') || '';
   const stampDate = /^\d{4}-\d{2}-\d{2}$/.test(date) ? '"' + date.slice(8) + '" ' + date.slice(5, 7) + '.' + date.slice(0, 4) + 'г.' : fmtD(date);
-  return {templateKey: record.frameTemplate?.fileKey || record.frameTemplateKey || '', signerRows: rows, values: {
+  return {templateKey: record.frameTemplate?.fileKey || record.frameTemplateKey || '', signerRows: rows, captionEnabled: true, sheetPlaces: {...record.sheetPlaces}, values: {
     Шифр: designation, Объект: p.name || '', Здание: p.name || '',
+    Номер_Схемы: String(record.num || a?.num || code).trim(),
+    Наименование_Работ: String(a?.works || record.name || item.name || '').trim(),
+    Место_Работ: a?.place || '',
     Название_Схемы: [record.num, record.name || item.name].filter(Boolean).join(' · '),
     Организация: org(per?.orgId)?.short || p.genContractor || '',
     Разработал: signer('Разработал'), Проверил: signer('Проверил'), Нормоконтроль: signer('Н. контр.') || signer('Нормоконтроль'),
@@ -197,7 +200,43 @@ function drawingWarnings(plan) {
  return [...warnings];
 }
 function drawingRecord(s,id){return resourceList(s).find(x=>x.id===id);}
-function drawingPanel(p,s,item){const r=item.record,acts=s.acts.filter(a=>a.schemes.some(x=>x.id===item.id)||a.schemeLinks.some(l=>l.id===item.id));return `<div class="card"><h3>Реквизиты схемы</h3><label>Шифр в штампе (пусто — из системы)<input data-frame-field="frameCipher" data-s="${s.id}" data-x="${item.id}" value="${esc(r.frameCipher || '')}"></label><label>Номер приложения (пусто — автоматически)<input type="number" min="1" step="1" data-frame-field="appNo" data-s="${s.id}" data-x="${item.id}" value="${esc(r.appNo || '')}" placeholder="Автоматически"></label><label>Номер схемы<input data-frame-field="num" data-s="${s.id}" data-x="${item.id}" value="${esc(r.num || '')}"></label><label>Название схемы<input data-frame-field="name" data-s="${s.id}" data-x="${item.id}" value="${esc(r.name || item.name)}"></label><label>Стадия (пусто — из системы)<input data-frame-field="stage" data-s="${s.id}" data-x="${item.id}" value="${esc(r.stage ?? '')}"></label></div>`+frameSignerControls(s,item)+`<div class="card"><h3>Рамка исполнительной схемы</h3><p><b>${esc(item.name)}</b> · ${esc(r.file||'PDF не загружен')}</p><p class="small mut">ГОСТ Р 21.101-2026: форма 3, основная надпись 185 × 55 мм; поле подшивки 20 мм, остальные поля 5 мм. Формат и ориентация каждого листа берутся из исходного PDF. Исходный файл сохраняется.</p><label class="row"><input type="checkbox" data-a="drawingToggle" data-s="${s.id}" data-x="${item.id}" ${r.frameEnabled?'checked':''}> Добавлять рамку и блок приложения при сборке PDF</label><p class="small mut">Если рамка уже есть на чертеже, оставьте эту настройку выключенной. Рамка накладывается поверх исходного листа без проверки существующего оформления. Масштаб и положение чертежа сохраняются.</p><div class="row mt">${B('Сохранить HTML-шаблон ГОСТ','drawingTemplateSave')}${B('Подгрузить свой HTML-шаблон','drawingTemplatePick',`data-s="${s.id}" data-x="${item.id}"`)}${(r.frameTemplate?.fileKey||r.frameTemplateKey)?B('Вернуть шаблон ГОСТ','drawingTemplateReset',`data-s="${s.id}" data-x="${item.id}"`):''}</div><p class="small mut">${esc(r.frameTemplateName||'Встроенный шаблон ГОСТ')}. Теги строк: {{Роль_1}}…{{Роль_6}}, {{Подписант_1}}…{{Подписант_6}}, {{Дата_Подписанта_1}}…{{Дата_Подписанта_6}}. Теги: {{Объект}}, {{Шифр}}, {{Система}}, {{АОСР}}, {{Работы}}, {{Выполнение}}, {{Лист}}, {{Листов}}. Изменяйте текст и оформление SVG внутри HTML.</p><div class="row mt"><label>Лист <input id="drawing-page" type="number" min="1" max="${r.pages||1}" value="1" style="width:70px"></label><label>Связанный АОСР <select id="drawing-act" data-s="${s.id}" data-x="${item.id}"><option value="">Автоматически по выполнению</option>${acts.map(a=>`<option value="${a.id}" ${a.id===r.frameActId?'selected':''}>${esc(a.num)}</option>`).join('')}</select></label>${B('Показать настоящий лист','drawingPreview',`data-s="${s.id}" data-x="${item.id}"`,'pri')}</div><div id="drawing-result" class="mt"><p class="small mut">Нажмите «Показать настоящий лист», чтобы проверить рамку на загруженном чертеже.</p></div></div>`;}
+
+function drawingSheetCaption(config, page) {
+  const values=config.values, base=String(values.Номер_Схемы || '').trim(),
+    number=base ? base+'.'+page : String(page),
+    work=String(values.Наименование_Работ || '').trim(),
+    place=String(config.sheetPlaces?.[String(page)] || '').trim(),
+    text=[work,place].filter(Boolean).join(' ');
+  return 'Исполнительная схема № '+number+(text ? ' «'+text+'»' : '');
+}
+function drawingSheetControls(p,s,item) {
+  const count=Number(item.record.pages);
+  if(!Number.isInteger(count)||count<1)return '';
+  const config=drawingContext(p,s,item,null);
+  return `<div class="card" data-sheet-places data-s="${esc(s.id)}" data-x="${esc(item.id)}"><h3>Место выполнения по листам PDF</h3>
+    <p class="small mut">Надпись в центре каждого листа формируется автоматически из номера схемы, номера листа, работ АОСР и места этого листа. Если место не заполнено, оно не добавляется; общее место АОСР сюда не подставляется.</p>
+    <div class="lst" style="max-height:420px;overflow:auto">${Array.from({length:count},(_,i)=>{const page=i+1;return `<div class="mb"><label class="fld"><span>Лист ${page} — место выполнения</span><textarea rows="2" data-sheet-place="${page}" data-s="${esc(s.id)}" data-x="${esc(item.id)}" placeholder="Например: на 3-м этаже в осях 3–21/Ж–Ф, отм. +7.000">${esc(item.record.sheetPlaces?.[String(page)] || '')}</textarea></label><p class="small mut" data-sheet-caption="${page}">${esc(drawingSheetCaption(config,page))}</p></div>`}).join('')}</div></div>`;
+}
+function refreshDrawingSheetCaptions(d) {
+  const {p,o:s}=ctx('sys',d.s),item=drawingRecord(s,d.x);
+  if(!item)return;
+  const config=drawingContext(p,s,item,null);
+  document.querySelectorAll('[data-sheet-places]').forEach(box=>{
+    if(box.dataset.s!==d.s||box.dataset.x!==d.x)return;
+    box.querySelectorAll('[data-sheet-caption]').forEach(el=>el.textContent=drawingSheetCaption(config,Number(el.dataset.sheetCaption)));
+  });
+}
+document.addEventListener('input',event=>{
+  const el=event.target;if(!el.dataset.sheetPlace||!guard(entKey('sys',el.dataset.s)))return;
+  const {s,item,record}=frameRowsTarget(el.dataset),page=Number(el.dataset.sheetPlace);
+  if(!item||!Number.isInteger(page)||page<1||page>Number(record.pages))return;
+  record.sheetPlaces={...record.sheetPlaces};
+  if(el.value.trim())record.sheetPlaces[String(page)]=el.value;
+  else delete record.sheetPlaces[String(page)];
+  touch(s);save();refreshDrawingSheetCaptions(el.dataset);
+});
+
+function drawingPanel(p,s,item){const r=item.record,acts=s.acts.filter(a=>a.schemes.some(x=>x.id===item.id)||a.schemeLinks.some(l=>l.id===item.id));return `<div class="card"><h3>Реквизиты схемы</h3><label>Шифр в штампе (пусто — из системы)<input data-frame-field="frameCipher" data-s="${s.id}" data-x="${item.id}" value="${esc(r.frameCipher || '')}"></label><label>Номер приложения (пусто — автоматически)<input type="number" min="1" step="1" data-frame-field="appNo" data-s="${s.id}" data-x="${item.id}" value="${esc(r.appNo || '')}" placeholder="Автоматически"></label><label>Номер схемы<input data-frame-field="num" data-s="${s.id}" data-x="${item.id}" value="${esc(r.num || '')}"></label><label>Название схемы<input data-frame-field="name" data-s="${s.id}" data-x="${item.id}" value="${esc(r.name || item.name)}"></label><label>Стадия (пусто — из системы)<input data-frame-field="stage" data-s="${s.id}" data-x="${item.id}" value="${esc(r.stage ?? '')}"></label></div>`+drawingSheetControls(p,s,item)+frameSignerControls(s,item)+`<div class="card"><h3>Рамка исполнительной схемы</h3><p><b>${esc(item.name)}</b> · ${esc(r.file||'PDF не загружен')}</p><p class="small mut">ГОСТ Р 21.101-2026: форма 3, основная надпись 185 × 55 мм; поле подшивки 20 мм, остальные поля 5 мм. Формат и ориентация каждого листа берутся из исходного PDF. Исходный файл сохраняется.</p><label class="row"><input type="checkbox" data-a="drawingToggle" data-s="${s.id}" data-x="${item.id}" ${r.frameEnabled?'checked':''}> Добавлять рамку и блок приложения при сборке PDF</label><p class="small mut">Если рамка уже есть на чертеже, оставьте эту настройку выключенной. Рамка накладывается поверх исходного листа без проверки существующего оформления. Масштаб и положение чертежа сохраняются.</p><div class="row mt">${B('Сохранить HTML-шаблон ГОСТ','drawingTemplateSave')}${B('Подгрузить свой HTML-шаблон','drawingTemplatePick',`data-s="${s.id}" data-x="${item.id}"`)}${(r.frameTemplate?.fileKey||r.frameTemplateKey)?B('Вернуть шаблон ГОСТ','drawingTemplateReset',`data-s="${s.id}" data-x="${item.id}"`):''}</div><p class="small mut">${esc(r.frameTemplateName||'Встроенный шаблон ГОСТ')}. Теги строк: {{Роль_1}}…{{Роль_6}}, {{Подписант_1}}…{{Подписант_6}}, {{Дата_Подписанта_1}}…{{Дата_Подписанта_6}}. Теги: {{Надпись_Схемы}}, {{Номер_Схемы_Листа}}, {{Место_Выполнения_Листа}}, {{Наименование_Работ}}, {{Объект}}, {{Шифр}}, {{Система}}, {{АОСР}}, {{Работы}}, {{Выполнение}}, {{Лист}}, {{Листов}}. Изменяйте текст и оформление SVG внутри HTML.</p><div class="row mt"><label>Лист <input id="drawing-page" type="number" min="1" max="${r.pages||1}" value="1" style="width:70px"></label><label>Связанный АОСР <select id="drawing-act" data-s="${s.id}" data-x="${item.id}"><option value="">Автоматически по выполнению</option>${acts.map(a=>`<option value="${a.id}" ${a.id===r.frameActId?'selected':''}>${esc(a.num)}</option>`).join('')}</select></label>${B('Показать настоящий лист','drawingPreview',`data-s="${s.id}" data-x="${item.id}"`,'pri')}</div><div id="drawing-result" class="mt"><p class="small mut">Нажмите «Показать настоящий лист», чтобы проверить рамку на загруженном чертеже.</p></div></div>`;}
 A.drawingToggle=(d,el)=>{if(!guard()){el.checked=!el.checked;return;}drawingRecord(getEnt('sys',d.s),d.x).record.frameEnabled=el.checked;commit('Изменена рамка схемы');};
 A.drawingEdit=d=>{const {p,o:s}=ctx('sys',d.s),item=drawingRecord(s,d.x);modal('Рамка и предпросмотр',drawingPanel(p,s,item),[{l:'Готово',c:'pri'}],'wide');};
 A.drawingTemplateSave=async()=>{try{await nativeCall('saveFrameTemplate');}catch(e){toast(e.message);}};
@@ -209,7 +248,7 @@ schemeTab=(p,s)=>drawingPanel(p,s,drawingRecord(s,'system'))+`<div class="card">
 A.stampApply=d=>A.drawingEdit({...d,x:'system'});
 
 A.ownPrev=d=>{const {s}=ctx('act',d.id);A.drawingEdit({s:s.id,x:d.x});};
-document.addEventListener('change',event=>{if(event.target.id!=='drawing-act')return;const el=event.target;if(!guard())return;drawingRecord(getEnt('sys',el.dataset.s),el.dataset.x).record.frameActId=el.value;save();});
+document.addEventListener('change',event=>{if(event.target.id!=='drawing-act')return;const el=event.target;if(!guard())return;drawingRecord(getEnt('sys',el.dataset.s),el.dataset.x).record.frameActId=el.value;save();refreshDrawingSheetCaptions(el.dataset);});
 
 document.addEventListener('change', event => {
   const el = event.target;
@@ -219,7 +258,7 @@ document.addEventListener('change', event => {
   if (el.dataset.frameField === 'appNo' && value && (!Number.isInteger(Number(value)) || Number(value) < 1)) { el.value = r.appNo || ''; toast('Введите целый положительный номер приложения'); return; }
   if (['stage','frameCipher','appNo'].includes(el.dataset.frameField) && !value) delete r[el.dataset.frameField];
   else r[el.dataset.frameField] = value;
-  commit('Изменены реквизиты рамки');
+  commit('Изменены реквизиты рамки');refreshDrawingSheetCaptions(el.dataset);
 });
 
 function confirmFrameWarnings(plans) {
