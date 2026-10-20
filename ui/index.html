@@ -992,7 +992,11 @@ function apply(t,fromInput){const ent=t.dataset.ent,id=t.dataset.id,f=t.dataset.
  save();if(t.dataset.rr&&!fromInput)render();else refreshChrome()}
 const isTextual=t=>t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&!['checkbox','radio','date','file','number'].includes(t.type));
 document.addEventListener('input',e=>{const t=e.target;if(!t.dataset||!t.dataset.f)return;if(isTextual(t))apply(t,true)});
-document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.dataset.f)return;if(isTextual(t)){fsRename(t);if(t.dataset.rr&&!window.manualSavingMode)render();return}apply(t,false)});
+// Native date editors emit change for partial years (e.g. 0002). Commit only
+// after leaving the field, without rebuilding the DOM under the next click.
+function applyDate(t){if(t.validity.badInput){t.value=getPath(getEnt(t.dataset.ent,t.dataset.id),t.dataset.f)||'';toast('Введите дату полностью');return;}apply(t,true);}
+document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.dataset.f)return;if(t.type==='date'){if(document.activeElement!==t)applyDate(t);return;}if(isTextual(t)){fsRename(t);if(t.dataset.rr&&!window.manualSavingMode)render();return}apply(t,false)});
+document.addEventListener('focusout',e=>{const t=e.target;if(t.type==='date'&&t.dataset?.f)applyDate(t);});
 function fsRename(t){if(t.dataset.orig===undefined)return;const k=t.dataset.fsk;const o=getEnt(t.dataset.ent,t.dataset.id);if(!o)return;const nv=fsName(t.value,k==='act'?30:k==='sys'?20:40);if(nv===t.dataset.orig){o.dir=nv;return}
  const c=ctx(t.dataset.ent,t.dataset.id);const sib=k==='act'?c.s?.acts.filter(x=>x.id!==o.id).map(actDir):k==='sys'?c.p?.systems.filter(x=>x.id!==o.id).map(sysDir):S.projects.filter(x=>x.id!==o.id).map(objDir);
  if(sib&&sib.includes(nv)){o.dir=t.dataset.orig;save();toast(`Папка «${nv}» уже есть — папка остаётся «${t.dataset.orig}», пока имя не станет уникальным`);return}
