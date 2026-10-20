@@ -192,8 +192,10 @@ function drawingWarnings(plan) {
  for(const v of plan.volumes)for(const d of v.documents){
   if(d.type!=='Исполнительная схема'||!('sourceNumber' in d))continue;
   const missing=[];
-  if(!d.sourceNumber?.trim())missing.push('номер схемы');
-  const title=(d.sourceTitle||'').trim();
+  // Validate the values actually printed, including automatic AOSR defaults.
+  const number=String(d.frame?.values?.Номер_Схемы || d.sourceNumber || '').trim();
+  if(!number)missing.push('номер схемы');
+  const title=String(d.frame?.values?.Наименование_Работ || d.sourceTitle || '').trim();
   if(!title||/^(?:новая )?исполнительная схема$/i.test(title))missing.push('полное название схемы');
   if(missing.length)warnings.add((d.name||'Схема')+': '+missing.join(', '));
  }

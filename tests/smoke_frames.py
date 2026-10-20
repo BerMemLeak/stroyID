@@ -41,6 +41,7 @@ def ready(value):
  a.place='Общее место АОСР';a.works='Разборка деревянных плинтусов';
  const savedNumber=s.scheme.num;s.scheme.num='';
  let sheetConfig=drawingContext(p,s,item,v,a);
+ assert(drawingWarnings({volumes:[{documents:[{type:'Исполнительная схема',name:'Схема',sourceNumber:'',sourceTitle:'Исполнительная схема',frame:sheetConfig}]}]}).length===0,'Effective automatic caption values must satisfy export validation');
  assert(drawingSheetCaption(sheetConfig,3)==='Исполнительная схема № '+a.num+'.3 «Разборка деревянных плинтусов»','Empty sheet place must not inherit AOSR place');
  const sheetPlace=document.querySelector('.dlg [data-sheet-place="3"]');
  assert(sheetPlace,'Per-sheet place editor missing');sheetPlace.focus();sheetPlace.value='на 3-м этаже в осях 3–21/Ж–Ф, отм. +7.000';
