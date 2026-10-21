@@ -31,7 +31,7 @@ class WorkflowDataTests(unittest.TestCase):
    other=Store(root/'other/СтройИД');r=other.load();self.assertEqual(r['state']['lib']['quality'][0]['num'],'78');self.assertFalse(r['warnings']);self.assertTrue(other.asset_path(r['state']['lib']['quality'][0]['fileKey'])[0].is_file());other.close();store.close()
  def test_user_title_logo_is_an_image_not_base64_text(self):
   source=ROOT/'ui/reference-templates/title.docx';image=QImage(300,80,QImage.Format.Format_RGB32);image.fill(0xff224466);buffer=QBuffer();buffer.open(QIODevice.OpenModeFlag.WriteOnly);image.save(buffer,'PNG')
-  values={tag:'Проверка' for tag in inspect_docx(source.read_bytes())['tags']};values['Логотип_Компании']='data:image/png;base64,'+base64.b64encode(bytes(buffer.data())).decode()
+  values={tag:'Проверка' for tag in inspect_docx(source.read_bytes())['tags']};values['Комплект.Логотип']='data:image/png;base64,'+base64.b64encode(bytes(buffer.data())).decode()
   with tempfile.TemporaryDirectory() as tmp:
    out=fill_docx(source.read_bytes(),Path(tmp)/'title.docx',values);parts=package(out.read_bytes())
    self.assertIn(b'wordprocessingDrawing',parts['word/document.xml']);self.assertNotIn(b'data:image',parts['word/document.xml']);self.assertEqual(len([k for k in parts if k.startswith('word/media/stroiid-')]),1);self.assertEqual(inspect_docx(out.read_bytes())['tags'],[])

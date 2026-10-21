@@ -22,7 +22,6 @@ PKG = 'http://schemas.openxmlformats.org/package/2006/relationships'
 XML_SPACE = '{http://www.w3.org/XML/1998/namespace}space'
 TAG = re.compile(r'\{\{\s*([^{}]+?)\s*\}\}')
 PART = re.compile(r'^word/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$')
-COLLECTIONS = {'Реестр', 'Строки', 'Фото', 'Объемы'}
 
 def parse_xml(data):
     if b'<!DOCTYPE' in data.upper() or b'<!ENTITY' in data.upper():
@@ -173,23 +172,21 @@ def add_picture(paragraph, value, parts, part_name, width_inches=5.2):
 
 
 def fill_docx(data, target, values, collections=None):
+    from document_tags import collection_tags, validate_values
     parts = package(data)
     collections = collections or {}
     known = set(values)
     for key, rows in collections.items():
         for row in rows:
             known.update(key + '.' + str(k) for k in row)
-    # Empty lists still allow the standard row tags, so a header-only table can be emitted.
-    known.update('Строки.Колонка_' + str(i) for i in range(1, 21))
-    known.update({'Реестр.Номер', 'Реестр.Наименование', 'Реестр.Тип', 'Реестр.Номер_Дата', 'Реестр.Листы',
-                  'Строки.Номер', 'Фото.Номер', 'Фото.Подпись', 'Фото.Изображение'})
-    known.update('Объемы.' + k for k in ('Номер', 'Наименование', 'Место', 'Единица', 'Количество'))
+    known.update(collection_tags())
     missing = set(inspect_docx(data)['tags']) - known
     if missing:
         raise ValueError('Неизвестные теги: ' + ', '.join('{{' + x + '}}' for x in sorted(missing)))
-    logo = values.get('Логотип_Компании', '')
-    logo_tag_present = 'Логотип_Компании' in inspect_docx(data)['tags']
-    text_values = {**values, 'Логотип_Компании': ''}
+    validate_values(inspect_docx(data)['tags'], values)
+    logo = values.get('Комплект.Логотип', '')
+    logo_tag_present = 'Комплект.Логотип' in inspect_docx(data)['tags']
+    text_values = {**values, 'Комплект.Логотип': ''}
     for name in list(parts):
         if not PART.match(name):
             continue
@@ -201,7 +198,7 @@ def fill_docx(data, target, values, collections=None):
                 if row.tag != '{' + W + '}tr':
                     continue
                 tags = [m.group(1).strip() for p in row.iter('{' + W + '}p') for m in TAG.finditer(paragraph_text(p))]
-                groups = {x.split('.')[0] for x in tags if '.' in x and x.split('.')[0] in COLLECTIONS}
+                groups = {x.split('.')[0] for x in tags if x in collection_tags()}
                 if not groups:
                     continue
                 if len(groups) != 1:
@@ -214,7 +211,7 @@ def fill_docx(data, target, values, collections=None):
                     cells = list(new_row.findall('{' + W + '}tc'))
                     merged = dict(values, **{group + '.' + str(k): v for k, v in row_values.items()})
                     for paragraph in new_row.iter('{' + W + '}p'):
-                        has_photo = '{{Фото.Изображение}}' in paragraph_text(paragraph).replace(' ', '')
+                        has_photo = bool(re.search(r'\{\{\s*Фото\.Изображение\s*\}\}', paragraph_text(paragraph)))
                         local = dict(merged)
                         if has_photo:
                             local['Фото.Изображение'] = ''
@@ -231,7 +228,7 @@ def fill_docx(data, target, values, collections=None):
                     pos += 1
         for paragraph in root.iter('{' + W + '}p'):
             if id(paragraph) not in processed:
-                has_logo = bool(re.search(r'\{\{\s*Логотип_Компании\s*\}\}', paragraph_text(paragraph)))
+                has_logo = bool(re.search(r'\{\{\s*Комплект\.Логотип\s*\}\}', paragraph_text(paragraph)))
                 replace_text(paragraph, text_values)
                 if has_logo and logo:
                     add_picture(paragraph, logo, parts, name, 1.5)
@@ -370,6 +367,10 @@ def convert_docx_batch(jobs):
             raise ValueError('Word не создал PDF документа')
 
 
+from document_tags import schema
+SIGNER_ROLES = schema()['roles']
+
+
 def sample_docx(section, title, target):
     """A real editable example showing supported tags and repeating table rows."""
     if section == 'quantity':
@@ -409,43 +410,43 @@ def sample_docx(section, title, target):
                 ET.SubElement(prop, '{' + W + '}tcW', {'{' + W + '}w': str(widths[cell_index]), '{' + W + '}type': 'dxa'})
                 paragraph(cell, text, bold=not i)
     paragraph(body, title.upper(), bold=True, center=True)
-    paragraph(body, 'Объект: {{Объект}}')
-    paragraph(body, 'Адрес: {{Адрес_Объекта}}')
+    paragraph(body, 'Объект: {{Объект.Наименование}}')
+    paragraph(body, 'Адрес: {{Объект.Адрес}}')
     if section == 'title':
-        for text in ('{{Застройщик}}', '{{Техзаказчик}}', 'ИСПОЛНИТЕЛЬНАЯ ДОКУМЕНТАЦИЯ',
-                     '{{Том}}', 'Шифр проекта: {{Шифр_Проекта}}', '{{Генподрядчик}}', '{{Год}}'):
+        for text in ('{{Участники.Застройщик.Наименование}}', '{{Участники.Техзаказчик.Наименование}}', 'ИСПОЛНИТЕЛЬНАЯ ДОКУМЕНТАЦИЯ',
+                     '{{Комплект.Наименование}}', 'Шифр проекта: {{Объект.Шифр}}', '{{Участники.Генподрядчик.Наименование}}', '{{Комплект.Год}}'):
             paragraph(body, text, center=True)
     elif section == 'reg':
-        paragraph(body, '{{Том}}', center=True)
+        paragraph(body, '{{Комплект.Наименование}}', center=True)
         table(['№', 'Тип / наименование документа', 'Номер и дата', 'Листы PDF'],
               ['{{Реестр.Номер}}', '{{Реестр.Тип}}: {{Реестр.Наименование}}', '{{Реестр.Номер_Дата}}', '{{Реестр.Листы}}'])
     elif section in ('aosr', 'aook'):
-        for text in ('Застройщик / технический заказчик: {{Застройщик}}; {{Техзаказчик}}',
-            'Лицо, осуществляющее строительство: {{Генподрядчик}}', 'Проектная организация: {{Проектировщик}}',
-            'Акт № {{Номер_Акта}} от {{Дата_Акта}}', 'Система: {{Система}}',
-            *['Представитель: {{Подписант_' + str(i) + '}}' for i in range(1, 6)],
-            '1. Предъявлены работы: {{Наименование_Работ}}', 'Место работ: {{Место_Работ}}',
-            '2. Рабочая документация: {{Шифр_РД}}', '3. Применённые материалы: {{Материалы}}',
-            'Документы качества: {{Документы_Качества}}', '4. Приложения: {{Приложения}}',
-            '5. Начало работ: {{Дата_Начала}}. Окончание: {{Дата_Окончания}}',
-            '6. Нормативные документы: {{Нормативы}}', '7. Разрешённые последующие работы: {{Последующие_Работы}}',
-            *['Подпись __________________ / {{ФИО_Подписант_' + str(i) + '}} /' for i in range(1, 6)]):
+        for text in ('Застройщик / технический заказчик: {{Участники.Застройщик.Наименование}}; {{Участники.Техзаказчик.Наименование}}',
+            'Лицо, осуществляющее строительство: {{Участники.Генподрядчик.Наименование}}', 'Проектная организация: {{Участники.Проектировщик.Наименование}}',
+            'Акт № {{АОСР.Номер}} от {{АОСР.Дата}}', 'Система: {{Раздел.Наименование}}',
+            *['Представитель: {{Подписанты.' + role + '.Описание}}' for role in SIGNER_ROLES],
+            '1. Предъявлены работы: {{АОСР.Работы}}', 'Место работ: {{АОСР.МестоРабот}}',
+            '2. Рабочая документация: {{АОСР.РабочаяДокументация}}', '3. Применённые материалы: {{АОСР.Материалы}}',
+            'Документы качества: {{Документ.ДокументыКачества}}', '4. Подтверждающие документы: {{АОСР.ПодтверждающиеДокументы}}', 'Приложения: {{АОСР.Приложения}}',
+            '5. Начало работ: {{АОСР.Начало}}. Окончание: {{АОСР.Окончание}}',
+            '6. Нормативные документы: {{АОСР.Нормативы}}', '7. Разрешённые последующие работы: {{АОСР.ПоследующиеРаботы}}',
+            *['Подпись __________________ / {{Подписанты.' + role + '.ФамилияИнициалы}} /' for role in SIGNER_ROLES]):
             paragraph(body, text)
     elif section == 'aik':
-        for text in ('Акт № {{Номер_Акта}} от {{Дата_Акта}}', 'Система: {{Система}}', 'Материал: {{Материал}}',
-            'Количество: {{Количество}}', 'Документы качества: {{Документы_Качества}}', 'Примечание: {{Примечание}}',
+        for text in ('Акт № {{АИК.Номер}} от {{АИК.Дата}}', 'Система: {{Раздел.Наименование}}', 'Материал: {{АИК.Материал}}',
+            'Количество: {{АИК.Количество}}', 'Документы качества: {{Документ.ДокументыКачества}}', 'Примечание: {{Документ.Примечание}}',
             'Заключение комиссии: ___________________________________________', 'Подписи: _____________________________________________________'):
             paragraph(body, text)
     elif section in ('ozhr', 'spj'):
-        paragraph(body, '{{Название_Документа}}')
+        paragraph(body, '{{Документ.Наименование}}')
         table(['№', 'Дата', 'Работы / место', 'Ответственный', 'Примечание / ссылка'],
               ['{{Строки.Номер}}', '{{Строки.Колонка_1}}', '{{Строки.Колонка_2}}', '{{Строки.Колонка_3}}', '{{Строки.Колонка_4}}'])
     elif section == 'photos':
-        paragraph(body, 'К акту № {{Номер_Акта}} от {{Дата_Акта}}')
+        paragraph(body, 'К акту № {{АОСР.Номер}} от {{АОСР.Дата}}')
         table(['№', 'Фотография', 'Подпись'], ['{{Фото.Номер}}', '{{Фото.Изображение}}', '{{Фото.Подпись}}'])
     else:
-        for text in ('{{Название_Документа}}', '№ {{Номер_Документа}} от {{Дата_Документа}}',
-            'Система: {{Система}}', 'Содержание: {{Содержание}}', 'Примечание: {{Примечание}}'):
+        for text in ('{{Документ.Наименование}}', '№ {{Документ.Номер}} от {{Документ.Дата}}',
+            'Система: {{Раздел.Наименование}}', 'Содержание: {{Документ.Содержание}}', 'Примечание: {{Документ.Примечание}}'):
             paragraph(body, text)
     sect = ET.SubElement(body, '{' + W + '}sectPr')
     ET.SubElement(sect, '{' + W + '}pgSz', {'{' + W + '}w': '11906', '{' + W + '}h': '16838'})

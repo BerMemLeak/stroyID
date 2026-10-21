@@ -1,16 +1,16 @@
 <!doctype html><html lang="ru"><meta charset="utf-8"><title>Рамка исполнительной схемы — оформление ВК1</title>
 <!-- Размеры в мм. Оформление по предоставленному ВК1.pdf; листы и участники заполняются приложением. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="{{Ширина}}mm" height="{{Высота}}mm" viewBox="0 0 {{Ширина}} {{Высота}}" font-family="ISOCPEUR" fill="none" stroke="black" stroke-width="0.25">
-<rect x="20" y="5" width="{{Ширина_Рамки}}" height="{{Высота_Рамки}}"/>
-<text id="drawing-sheet-caption" x="{{X_Центр_Листа}}" y="{{Y_Центр_Листа}}" font-size="5" text-anchor="middle" fill="black" stroke="none" data-text-scale="0.75" data-fit-width="{{Ширина_Надписи_Листа}}" data-fit-height="40">{{Надпись_Схемы}}</text>
-<g id="attachment-stamp" transform="translate({{X_Приложение}} 5)" font-size="4" fill="black" stroke="none">
+<svg xmlns="http://www.w3.org/2000/svg" width="{{Геометрия.Ширина}}mm" height="{{Геометрия.Высота}}mm" viewBox="0 0 {{Геометрия.Ширина}} {{Геометрия.Высота}}" font-family="ISOCPEUR" fill="none" stroke="black" stroke-width="0.25">
+<rect x="20" y="5" width="{{Геометрия.Ширина_Рамки}}" height="{{Геометрия.Высота_Рамки}}"/>
+<text id="drawing-sheet-caption" x="{{Геометрия.X_Центр_Листа}}" y="{{Геометрия.Y_Центр_Листа}}" font-size="5" text-anchor="middle" fill="black" stroke="none" data-text-scale="0.75" data-fit-width="{{Геометрия.Ширина_Надписи_Листа}}" data-fit-height="40">{{Лист.Надпись}}</text>
+<g id="attachment-stamp" transform="translate({{Геометрия.X_Приложение}} 5)" font-size="4" fill="black" stroke="none">
 <rect width="53" height="25" fill="white" stroke="black" stroke-width="0.25"/>
 <path d="M23 7H50 M21 15H50" fill="none" stroke="black" stroke-width="0.15"/>
-<text data-text-scale="0.75" x="2.5" y="6">Приложение №</text><text data-text-scale="0.75" x="30" y="6" data-fit-width="20">{{Приложение}}</text>
-<text data-text-scale="0.75" x="2.5" y="13.5">{{Основание_Приложения}}</text><text data-text-scale="0.75" x="22" y="13.5" data-fit-width="28">{{Шифр_Приложения}}</text>
-<text data-text-scale="0.75" x="2.5" y="21" data-fit-width="48">от {{Дата_Приложения}}</text>
+<text data-text-scale="0.75" x="2.5" y="6">Приложение №</text><text data-text-scale="0.75" x="30" y="6" data-fit-width="20">{{Приложение.Номер}}</text>
+<text data-text-scale="0.75" x="2.5" y="13.5">{{Приложение.Основание}}</text><text data-text-scale="0.75" x="22" y="13.5" data-fit-width="28">{{Приложение.Документ}}</text>
+<text data-text-scale="0.75" x="2.5" y="21" data-fit-width="48">от {{Приложение.Дата}}</text>
 </g>
-<g transform="translate({{X_Надпись}} {{Y_Надпись}})"><rect width="185" height="55" fill="white"/>
+<g transform="translate({{Геометрия.X_Надпись}} {{Геометрия.Y_Надпись}})"><rect width="185" height="55" fill="white"/>
 <path d="M0 5H65"/>
 <path d="M0 10H65"/>
 <path d="M0 15H65"/>
@@ -34,33 +34,33 @@
 <text data-text-scale="0.75" x="34.5" y="24" font-size="3.5" text-anchor="middle" fill="black" stroke="none">№док.</text>
 <text data-text-scale="0.75" x="47.5" y="24" font-size="3.5" text-anchor="middle" fill="black" stroke="none">Подп.</text>
 <text data-text-scale="0.75" x="60" y="24" font-size="3.5" text-anchor="middle" fill="black" stroke="none">Дата</text>
-<text data-text-scale="0.75" x="9" y="29" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Роль_1}}</text>
-<text data-text-scale="0.75" x="19" y="29" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Подписант_1}}</text>
-<text data-text-scale="0.75" x="60" y="29" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Дата_Подписанта_1}}</text>
-<text data-text-scale="0.75" x="9" y="34" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Роль_2}}</text>
-<text data-text-scale="0.75" x="19" y="34" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Подписант_2}}</text>
-<text data-text-scale="0.75" x="60" y="34" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Дата_Подписанта_2}}</text>
-<text data-text-scale="0.75" x="9" y="39" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Роль_3}}</text>
-<text data-text-scale="0.75" x="19" y="39" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Подписант_3}}</text>
-<text data-text-scale="0.75" x="60" y="39" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Дата_Подписанта_3}}</text>
-<text data-text-scale="0.75" x="9" y="44" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Роль_4}}</text>
-<text data-text-scale="0.75" x="19" y="44" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Подписант_4}}</text>
-<text data-text-scale="0.75" x="60" y="44" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Дата_Подписанта_4}}</text>
-<text data-text-scale="0.75" x="9" y="49" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Роль_5}}</text>
-<text data-text-scale="0.75" x="19" y="49" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Подписант_5}}</text>
-<text data-text-scale="0.75" x="60" y="49" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Дата_Подписанта_5}}</text>
-<text data-text-scale="0.75" x="9" y="54" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Роль_6}}</text>
-<text data-text-scale="0.75" x="19" y="54" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Подписант_6}}</text>
-<text data-text-scale="0.75" x="60" y="54" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Дата_Подписанта_6}}</text>
-<text data-text-scale="0.84" x="125" y="6.5" font-size="5.2" text-anchor="middle" fill="black" stroke="none" data-fit-width="116">{{Шифр}}</text>
-<text data-text-scale="0.75" x="125" y="17" font-size="4.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="116" data-fit-height="12">{{Объект}}</text>
-<text data-text-scale="0.75" x="100" y="33.5" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="66" data-fit-height="13">{{Система}}</text>
+<text data-text-scale="0.75" x="9" y="29" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Рамка.Строка1.Роль}}</text>
+<text data-text-scale="0.75" x="19" y="29" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Рамка.Строка1.ФамилияИнициалы}}</text>
+<text data-text-scale="0.75" x="60" y="29" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Рамка.Строка1.Дата}}</text>
+<text data-text-scale="0.75" x="9" y="34" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Рамка.Строка2.Роль}}</text>
+<text data-text-scale="0.75" x="19" y="34" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Рамка.Строка2.ФамилияИнициалы}}</text>
+<text data-text-scale="0.75" x="60" y="34" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Рамка.Строка2.Дата}}</text>
+<text data-text-scale="0.75" x="9" y="39" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Рамка.Строка3.Роль}}</text>
+<text data-text-scale="0.75" x="19" y="39" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Рамка.Строка3.ФамилияИнициалы}}</text>
+<text data-text-scale="0.75" x="60" y="39" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Рамка.Строка3.Дата}}</text>
+<text data-text-scale="0.75" x="9" y="44" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Рамка.Строка4.Роль}}</text>
+<text data-text-scale="0.75" x="19" y="44" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Рамка.Строка4.ФамилияИнициалы}}</text>
+<text data-text-scale="0.75" x="60" y="44" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Рамка.Строка4.Дата}}</text>
+<text data-text-scale="0.75" x="9" y="49" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Рамка.Строка5.Роль}}</text>
+<text data-text-scale="0.75" x="19" y="49" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Рамка.Строка5.ФамилияИнициалы}}</text>
+<text data-text-scale="0.75" x="60" y="49" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Рамка.Строка5.Дата}}</text>
+<text data-text-scale="0.75" x="9" y="54" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="17">{{Рамка.Строка6.Роль}}</text>
+<text data-text-scale="0.75" x="19" y="54" font-size="3.9" text-anchor="start" fill="black" stroke="none" data-fit-width="20">{{Рамка.Строка6.ФамилияИнициалы}}</text>
+<text data-text-scale="0.75" x="60" y="54" font-size="3.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="9">{{Рамка.Строка6.Дата}}</text>
+<text data-text-scale="0.84" x="125" y="6.5" font-size="5.2" text-anchor="middle" fill="black" stroke="none" data-fit-width="116">{{Схема.Шифр}}</text>
+<text data-text-scale="0.75" x="125" y="17" font-size="4.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="116" data-fit-height="12">{{Объект.Наименование}}</text>
+<text data-text-scale="0.75" x="100" y="33.5" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="66" data-fit-height="13">{{Раздел.Наименование}}</text>
 <text data-text-scale="0.75" x="142.5" y="29" font-size="3.9" text-anchor="middle" fill="black" stroke="none">Стадия</text>
-<text data-text-scale="0.75" x="142.5" y="37" font-size="4.7" text-anchor="middle" fill="black" stroke="none">{{Стадия}}</text>
+<text data-text-scale="0.75" x="142.5" y="37" font-size="4.7" text-anchor="middle" fill="black" stroke="none">{{Схема.Стадия}}</text>
 <text data-text-scale="0.75" x="157.5" y="29" font-size="3.9" text-anchor="middle" fill="black" stroke="none">Лист</text>
-<text data-text-scale="0.75" x="157.5" y="37" font-size="4.7" text-anchor="middle" fill="black" stroke="none">{{Лист}}</text>
+<text data-text-scale="0.75" x="157.5" y="37" font-size="4.7" text-anchor="middle" fill="black" stroke="none">{{Лист.Номер}}</text>
 <text data-text-scale="0.75" x="175" y="29" font-size="3.9" text-anchor="middle" fill="black" stroke="none">Листов</text>
-<text data-text-scale="0.75" x="175" y="37" font-size="4.7" text-anchor="middle" fill="black" stroke="none">{{Листов}}</text>
-<text data-text-scale="0.75" x="100" y="46" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="66" data-fit-height="13">{{Название_Схемы}}</text>
-<text data-text-scale="0.9" x="160" y="49" font-size="4.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="46" data-fit-height="13">{{Организация}}</text>
-</g><g transform="translate(8 {{Y_Инвентарных_Граф}})"><rect width="12" height="85"/><path d="M5 0V85 M0 25H12 M0 60H12"/><g fill="black" stroke="none" font-size="3.5"><text data-text-scale="0.75" transform="translate(4 12.5) rotate(-90)" text-anchor="middle">Взам. инв. №</text><text data-text-scale="0.75" transform="translate(4 42.5) rotate(-90)" text-anchor="middle">Подпись и дата</text><text data-text-scale="0.75" transform="translate(4 72.5) rotate(-90)" text-anchor="middle">Инв. № подл.</text></g></g></svg></html>
+<text data-text-scale="0.75" x="175" y="37" font-size="4.7" text-anchor="middle" fill="black" stroke="none">{{Лист.Всего}}</text>
+<text data-text-scale="0.75" x="100" y="46" font-size="3.9" text-anchor="middle" fill="black" stroke="none" data-fit-width="66" data-fit-height="13">{{Схема.Наименование}}</text>
+<text data-text-scale="0.9" x="160" y="49" font-size="4.5" text-anchor="middle" fill="black" stroke="none" data-fit-width="46" data-fit-height="13">{{Комплект.Компания.Наименование}}</text>
+</g><g transform="translate(8 {{Геометрия.Y_Инвентарных_Граф}})"><rect width="12" height="85"/><path d="M5 0V85 M0 25H12 M0 60H12"/><g fill="black" stroke="none" font-size="3.5"><text data-text-scale="0.75" transform="translate(4 12.5) rotate(-90)" text-anchor="middle">Взам. инв. №</text><text data-text-scale="0.75" transform="translate(4 42.5) rotate(-90)" text-anchor="middle">Подпись и дата</text><text data-text-scale="0.75" transform="translate(4 72.5) rotate(-90)" text-anchor="middle">Инв. № подл.</text></g></g></svg></html>

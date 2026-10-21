@@ -287,7 +287,8 @@ class Bridge(QObject):
                 if name:
                     text = Path(name).read_text('utf-8-sig')
                     import re
-                    template_svg(text, {k: '1' for k in re.findall(r'\{\{([^{}]+)\}\}', text)})
+                    from document_tags import schema
+                    template_svg(text, {k: '1' for k in schema()['fields']})
                     value = self.store.import_file(name)
             elif operation in ('trashMove','trashRestore','trashPurge','recoverMissing'):
                 value = {'trashMove':self.store.move_trash,'trashRestore':self.store.restore_trash,'trashPurge':self.store.purge_trash,'recoverMissing':lambda p:self.store.recover_missing(p['key'])}[operation](params)

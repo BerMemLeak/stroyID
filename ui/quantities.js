@@ -1,7 +1,6 @@
 /* Work quantities are optional per AOSR; their template and rows are reusable. */
 const QUANTITY_SECTION=['quantity','Ведомость объёмов работ','Ведомости объёмов выполненных работ','Документы инженерных систем'];
 WORD_SECTIONS.splice(WORD_SECTIONS.findIndex(x=>x[0]==='aosr')+1,0,QUANTITY_SECTION);
-WORD_FIELDS.push(['Название_Ведомости','АОСР'],['Проект_Ведомости','Рабочая документация акта'],['Основание_Ведомости','Рабочая документация акта'],['Примечание_Ведомости','Карточка ведомости'],...['Номер','Наименование','Место','Единица','Количество'].map(k=>['Объемы.'+k,'Строка ведомости объёмов']));
 function quantityEnabled(a){return a.type==='АОСР'&&a.quantityEnabled!==false;}
 function quantityRows(a){return Array.isArray(a.quantityRows)?a.quantityRows:[{id:'initial',name:a.works||'',place:a.place||'',unit:a.workUnit||'',qty:a.workQty??''}];}
 const quantityEnsure=ensureWorkspace;
@@ -25,23 +24,12 @@ actAttachmentEntries=(a,s)=>{
  return entries;
 };
 function quantityAttachmentText(a,s,actual=false){return actAttachmentEntries(a,s).map((x,i)=>(i+1)+'. '+x.name+', '+(actual&&x.quantityId?quantityMarker(a):x.pages||'?')+' л.').join('\n')||'Не выбраны';}
-const quantityContextBase=wordContext;
-wordContext=(p,v={},id='title')=>{
- const isQuantity=id.startsWith('quantity:'),aid=isQuantity?id.slice(9):id.startsWith('a')?id.slice(1):'';
- const pair=p.systems.flatMap(s=>s.acts.map(a=>({s,a}))).find(x=>x.a.id===aid);
- const ctx=quantityContextBase(p,v,isQuantity?'a'+aid:id);
- if(pair){const {a,s}=pair;ctx.values.Название_Ведомости=quantityName(a);ctx.values.Проект_Ведомости=a.rd||s.cipher||p.cipher||'';ctx.values.Основание_Ведомости=a.rd||'';ctx.values.Примечание_Ведомости=a.quantityNote||'';
-  ctx.collections.Объемы=quantityRows(a).map((r,i)=>({Номер:String(i+1),Наименование:r.name||a.works||'',Место:r.place||'',Единица:r.unit||'',Количество:String(r.qty??'')}));
-  if(isQuantity){ctx.values.Название_Документа=quantityName(a);ctx.values.Номер_Документа=a.num;}
- }else {Object.assign(ctx.values,{Название_Ведомости:'',Проект_Ведомости:'',Основание_Ведомости:'',Примечание_Ведомости:''});ctx.collections.Объемы=[];}
- return ctx;
-};
 function quantitySource(p,s,a,v){
  const issues=quantityIssues(a);
  if(issues.length)return {kind:'missing',error:'Ведомость к '+a.num+': '+issues.join('; ')};
  const t=wordChoice(p,v,'quantity');
  if(t&&!t.fileKey)return {kind:'missing',error:'Загрузите выбранный шаблон ведомости «'+t.name+'»'};
- return {kind:'word',...(t?{templateKey:t.fileKey,templateName:t.name}:{builtinTemplate:'quantity'}),...wordContext(p,v,'quantity:'+a.id)};
+ try{return {kind:'word',...(t?{templateKey:t.fileKey,templateName:t.name}:{builtinTemplate:'quantity'}),...validateDocumentContext(wordContext(p,v,'quantity:'+a.id),t?.tags||['Объект.Наименование','АОСР.Номер'])};}catch(e){return {kind:'missing',error:e.message};}
 }
 const quantityBlocks=blocksFor;
 blocksFor=(p,v)=>{
@@ -65,7 +53,7 @@ pdfSources=(p,v)=>{
   const source=sources.get('a'+a.id);
   if(!source||source.kind==='pdf'||source.kind==='missing')continue;
   const marker=quantityMarker(a),estimate=quantityAttachmentText(a,s),actual=quantityAttachmentText(a,s,true);
-  if(source.values)source.values={...source.values,Приложения:actual};
+  if(source.values)source.values={...source.values,'АОСР.Приложения':actual};
   if(source.html)source.html=source.html.replaceAll(esc(estimate).replace(/\n/g,'<br>'),esc(actual).replace(/\n/g,'<br>')).replaceAll(esc(estimate),esc(actual));
   source.attachmentPageRefs={[marker]:'quantity:'+a.id};
  }
@@ -81,7 +69,7 @@ assemblyPlans=(p,c)=>{
    const pair=p.systems.flatMap(s=>s.acts.map(a=>({s,a}))).find(x=>doc.id==='a'+x.a.id);
    if(!pair)continue;
    const {s,a}=pair,copy={...a,quantityEnabled:false};
-   if(doc.values)doc.values={...doc.values,Приложения:appsText(copy,s)};
+   if(doc.values)doc.values={...doc.values,'АОСР.Приложения':appsText(copy,s)};
    if(doc.html){const sp=spOf(s,a.subs[0])||s.subprofiles[0];doc.html=aosrHtml(copy,p,s,sp);}
    delete doc.attachmentPageRefs;
   }
@@ -100,4 +88,4 @@ document.addEventListener('input',event=>{const el=event.target;if(!el.dataset.q
 document.addEventListener('change',event=>{const id=event.target.dataset.quantityToggle;if(!id||!guard())return;const a=getEnt('act',id);a.quantityEnabled=event.target.checked;commit('Изменено включение ведомости',a);});
 A.quantityDownload=async d=>{try{const {p,s,o:a}=ctx('act',d.id),v=volumeList(p).find(v=>v.s?.id===s.id&&v.sp.id===a.subs[0]);if(!v)throw Error('Назначьте акту комплект подписантов');const source=quantitySource(p,s,a,v);if(source.kind==='missing')throw Error(source.error);await desktopFlush();const result=await desktopTrack(nativeCall('saveGeneratedDocx',{...source,filename:'Ведомость_'+a.num+'.docx'}));if(result)toast('Ведомость сохранена');}catch(e){toast(e.message);}};
 const quantityPreview=A.wordPreview;
-A.wordPreview=async d=>{const t=tpl(d.id);if(!t||wordKey(t)!=='quantity')return quantityPreview(d);try{const {p}=wordUIContext(),v=volumeList(p).find(v=>v.s?.acts.some(a=>a.type==='АОСР')),a=v?.s.acts.find(a=>a.type==='АОСР');if(!a)throw Error('Создайте АОСР для предпросмотра ведомости');await desktopTrack(nativeCall('openFilledWord',{key:t.fileKey,...wordContext(p,v,'quantity:'+a.id)}));}catch(e){toast(e.message);}};
+A.wordPreview=async d=>{const t=tpl(d.id);if(!t||wordKey(t)!=='quantity')return quantityPreview(d);try{const {p}=wordUIContext(),v=volumeList(p).find(v=>v.s?.acts.some(a=>a.type==='АОСР')),a=v?.s.acts.find(a=>a.type==='АОСР');if(!a)throw Error('Создайте АОСР для предпросмотра ведомости');await desktopTrack(nativeCall('openFilledWord',{key:t.fileKey,...validateDocumentContext(wordContext(p,v,'quantity:'+a.id),t?.tags||[])}));}catch(e){toast(e.message);}};

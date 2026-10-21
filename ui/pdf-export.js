@@ -1,7 +1,7 @@
 /* PDF assembly for the desktop application. Sources are resolved by managed IDs. */
 function pdfSource(record){return {kind:'pdf',key:record?.fileKey||'',declaredFile:record?.file||'',sourceRecordId:record?.id||'',sourceNumber:record?.num||'',sourceTitle:record?.name||''};}
 function pdfTitle(p,vol){return `<p align="center">${esc(p.developer||'')}</p><p align="center">${esc(p.techCustomer||'')}</p><br><br><h1>ИСПОЛНИТЕЛЬНАЯ<br>ДОКУМЕНТАЦИЯ</h1><br><p align="center"><b>${esc(p.name)}</b></p><p align="center">${esc(p.address)}</p><br><h2>${esc(vol.title)}</h2><p align="center">Шифр: ${esc(vol.s?.cipher||p.cipher||'')}</p><br><br><p align="center">${esc(p.genContractor||'')}</p><p align="center">${new Date().getFullYear()}</p>`;}
-function pdfJournal(j){return `<h2>${esc(j.name)}</h2><table border="1" cellspacing="0" cellpadding="4" width="100%"><thead><tr><th>№</th>${j.cols.map(c=>'<th>'+esc(c)+'</th>').join('')}</tr></thead><tbody>${j.rows.map((r,i)=>'<tr><td>'+(i+1)+'</td>'+j.cols.map((_,k)=>'<td>'+esc(r.c[k]||'')+'</td>').join('')+'</tr>').join('')}</tbody></table>`;}
+function pdfJournal(j){return `<h2>${esc(j.name)}</h2><table border="1" cellspacing="0" cellpadding="4" width="100%"><thead><tr><th>№</th>${j.cols.map(c=>'<th>'+esc(c)+'</th>').join('')}</tr></thead><tbody>${j.rows.map((r,i)=>'<tr><td>'+(i+1)+'</td>'+j.cols.map((_,k)=>'<td>'+esc(r.c[k]??'')+'</td>').join('')+'</tr>').join('')}</tbody></table>`;}
 function pdfPhotos(a){
  const per=[1,2,4].includes(Number(a.photoLayout))?Number(a.photoLayout):2,parts=[];
  for(let i=0;i<a.photos.length;i+=per){const photos=a.photos.slice(i,i+per);
@@ -24,7 +24,7 @@ function pdfSources(p,vol){
   put('ss'+s.id,pdfSource(s.scheme));s.sketches.forEach(x=>put('sk'+x.id,pdfSource(x)));
   s.trials.forEach(x=>put('trial'+x.id,pdfSource(x)));
   s.journals.forEach(j=>put('j'+j.id,j.mode==='B'?pdfSource(j):{kind:'html',html:pdfJournal(j),landscape:true}));
-  s.aik.forEach(k=>{const m=pMat(p,k.materialId);put('k'+k.id,k.file||k.fileKey?pdfSource(k):{kind:'html',html:`<h2>АКТ № ${esc(k.num)}</h2><p align="center"><b>входного контроля материалов и изделий</b></p><p>Объект: ${esc(p.name)}</p><p>Система: ${esc(s.code)}. Дата: ${fmtD(k.date)}</p><p>Материал: ${esc(mName(m))}</p><p>Количество: ${esc(k.qty||'')}</p><p>Документы качества: ${mDocs(m).map(x=>esc(x.type+' № '+x.num+' от '+fmtD(x.date))).join('; ')}</p><p>Примечание: ${esc(k.note||'')}</p><p>Заключение комиссии: ____________________________________</p><p>Подписи: ____________________________________</p><p class="small">Форма сформирована из карточки. Проверьте содержание и подписи перед передачей.</p>`});});
+  s.aik.forEach(k=>{const m=pMat(p,k.materialId);put('k'+k.id,k.file||k.fileKey?pdfSource(k):{kind:'html',html:documentAikHtml(k,p,s)});});
   s.acts.forEach(a=>{
    const sp=vol.s?.id===s.id?vol.sp:spOf(s,a.subs[0])||s.subprofiles[0]||{name:'',signers:{}};
    const invalidLink=linkedSchemes(a,s).some(({link,item})=>!item||!Number.isInteger(Number(link.from))||!Number.isInteger(Number(link.to))||Number(link.from)<1||Number(link.to)<Number(link.from)||Number(link.to)>Number(item.record.pages))||a.testLinks.some(id=>!s.trials.some(t=>t.id===id));

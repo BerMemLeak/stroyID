@@ -17,9 +17,7 @@ def frame_signer_values(config, values):
     """Populate the six physical slots; legacy exports keep their original cells."""
     rows=config.get('signerRows')
     if rows is None:
-        rows=[{'role':'Разработал','name':values.get('Разработал','')},
-              {'role':'Проверил','name':values.get('Проверил','')}, {}, {},
-              {'role':'Н. контр.','name':values.get('Нормоконтроль','')}]
+        rows=[]
     if not isinstance(rows,list) or len(rows)>FRAME_SIGNER_LIMIT:
         raise ValueError(f'В штампе доступно не более {FRAME_SIGNER_LIMIT} строк подписантов')
     for i in range(FRAME_SIGNER_LIMIT):
@@ -27,25 +25,25 @@ def frame_signer_values(config, values):
         if not isinstance(row,dict) or not all(isinstance(row.get(key,''),str) for key in ('role','name')):
             raise ValueError('Некорректная строка подписанта рамки')
         role,name=row.get('role','').strip(),row.get('name','').strip()
-        values[f'Роль_{i+1}']=role
-        values[f'Подписант_{i+1}']=name
-        values[f'Дата_Подписанта_{i+1}']=values.get('Дата','') if role or name else ''
+        values[f'Рамка.Строка{i+1}.Роль']=role
+        values[f'Рамка.Строка{i+1}.ФамилияИнициалы']=name
+        values[f'Рамка.Строка{i+1}.Дата']=values.get('Схема.Дата','') if role or name else ''
     return values
 
 
 SHEET_CAPTION_SVG = (
-    '<text id="drawing-sheet-caption" x="{{X_Центр_Листа}}" y="{{Y_Центр_Листа}}" '
+    '<text id="drawing-sheet-caption" x="{{Геометрия.X_Центр_Листа}}" y="{{Геометрия.Y_Центр_Листа}}" '
     'font-size="5" text-anchor="middle" fill="black" stroke="none" '
-    'data-text-scale="0.75" data-fit-width="{{Ширина_Надписи_Листа}}" '
-    'data-fit-height="40">{{Надпись_Схемы}}</text>'
+    'data-text-scale="0.75" data-fit-width="{{Геометрия.Ширина_Надписи_Листа}}" '
+    'data-fit-height="40">{{Лист.Надпись}}</text>'
 )
 
 
 def frame_sheet_values(config, sheet, values):
     """Use source sheet numbers and explicit per-sheet places, never the act place."""
-    values['Номер_Схемы_Листа']=''
-    values['Место_Выполнения_Листа']=''
-    values['Надпись_Схемы']=''
+    values['Лист.НомерСхемы']=''
+    values['Лист.МестоРабот']=''
+    values['Лист.Надпись']=''
     if not config.get('captionEnabled'):
         return values
     places=config.get('sheetPlaces',{})
@@ -54,13 +52,13 @@ def frame_sheet_values(config, sheet, values):
     place=places.get(str(sheet),'')
     if not isinstance(place,str):
         raise ValueError('Место выполнения листа должно быть текстом')
-    base=str(values.get('Номер_Схемы','') or '').strip()
+    base=str(values.get('Схема.Номер','') or '').strip()
     number=f'{base}.{sheet}' if base else str(sheet)
-    work=str(values.get('Наименование_Работ','') or '').strip()
+    work=str(values.get('АОСР.Работы','') or '').strip()
     description=' '.join(part for part in (work,place.strip()) if part)
-    values['Номер_Схемы_Листа']=number
-    values['Место_Выполнения_Листа']=place.strip()
-    values['Надпись_Схемы']='Исполнительная схема № '+number+(f' «{description}»' if description else '')
+    values['Лист.НомерСхемы']=number
+    values['Лист.МестоРабот']=place.strip()
+    values['Лист.Надпись']='Исполнительная схема № '+number+(f' «{description}»' if description else '')
     return values
 
 
@@ -161,18 +159,19 @@ def frame_page(page, config, *, sheet=1, total=1, template=None):
     wm,hm=w/MM,h/MM
     # A frame is an overlay only. Ignore legacy fitContent settings so existing
     # cards cannot accidentally scale or relocate the source drawing.
-    values={**config.get('values',{}),'Ширина':wm,'Высота':hm,'X_Надпись':wm-190,'Y_Надпись':hm-60,
-        'X_Приложение':wm-58,'Y_Инвентарных_Граф':hm-90,'X_Формат':wm-5,'Y_Формат':hm-1.5,'Ширина_Рамки':wm-25,'Высота_Рамки':hm-10,'Лист':str(sheet),
-        'Листов':str(total), 'Формат':paper_format(wm,hm),
-        'X_Центр_Листа':wm/2, 'Y_Центр_Листа':hm/2, 'Ширина_Надписи_Листа':min(wm-40,240)}
-    for key in ('Шифр','Объект','Здание','Название_Схемы','Организация','Разработал','Проверил','Нормоконтроль','Дата','Стадия','АОСР','Работы','Система','Выполнение','Дата_Акта','Номер_Приложения'):
+    values={**config.get('values',{}),'Геометрия.Ширина':wm,'Геометрия.Высота':hm,'Геометрия.X_Надпись':wm-190,'Геометрия.Y_Надпись':hm-60,
+        'Геометрия.X_Приложение':wm-58,'Геометрия.Y_Инвентарных_Граф':hm-90,'Геометрия.X_Формат':wm-5,'Геометрия.Y_Формат':hm-1.5,'Геометрия.Ширина_Рамки':wm-25,'Геометрия.Высота_Рамки':hm-10,'Лист.Номер':str(sheet),
+        'Лист.Всего':str(total), 'Лист.Формат':paper_format(wm,hm),
+        'Геометрия.X_Центр_Листа':wm/2, 'Геометрия.Y_Центр_Листа':hm/2, 'Геометрия.Ширина_Надписи_Листа':min(wm-40,240)}
+    for key in ('Схема.Шифр','Объект.Наименование','Схема.Здание','Схема.Наименование','Комплект.Компания.Наименование','Рамка.Разработал','Рамка.Проверил','Рамка.Нормоконтроль','Схема.Дата','Схема.Стадия','АОСР.Номер','Схема.Работы','Раздел.Наименование','Выполнение.Наименование','АОСР.Дата','Приложение.Номер'):
         values.setdefault(key,'')
-    values['Приложение']=values.get('Номер_Приложения','')
-    values.setdefault('Основание_Приложения', 'К акту №' if values['АОСР'] else 'К разделу')
-    values.setdefault('Шифр_Приложения', values['АОСР'])
-    values.setdefault('Дата_Приложения', values['Дата_Акта'])
+    values.setdefault('Приложение.Основание', 'К акту №' if values['АОСР.Номер'] else 'К разделу')
+    values.setdefault('Приложение.Документ', values['АОСР.Номер'])
+    values.setdefault('Приложение.Дата', values['АОСР.Дата'])
     frame_signer_values(config,values)
     frame_sheet_values(config,sheet,values)
+    if values['Лист.Надпись']:
+        values['Схема.Наименование']=values['Лист.Надпись']
     source=template or TEMPLATE.read_text('utf-8')
     if template and config.get('signerRows') is not None:
         # Old custom SVGs hard-code roles and cannot represent ordered custom
@@ -180,10 +179,10 @@ def frame_page(page, config, *, sheet=1, total=1, template=None):
         for i,row in enumerate(config['signerRows'],1):
             if not row.get('role','').strip() and not row.get('name','').strip():
                 continue
-            if any('{{'+key+'_'+str(i)+'}}' not in source for key in ('Роль','Подписант')):
-                raise ValueError('HTML-шаблон рамки не поддерживает выбранные строки. '
-                                 'Используйте встроенный шаблон или добавьте теги {{Роль_'+str(i)+'}} и {{Подписант_'+str(i)+'}}.')
-    if values['Надпись_Схемы'] and '{{Надпись_Схемы}}' not in source:
+            if any('{{Рамка.Строка'+str(i)+'.'+key+'}}' not in source for key in ('Роль','ФамилияИнициалы')):
+                raise ValueError('HTML-шаблон рамки использует старые теги строк. '
+                                 'Загрузите шаблон v2 или используйте встроенную рамку.')
+    if values['Лист.Надпись'] and '{{Лист.Надпись}}' not in source:
         source=re.sub(r'</svg\s*>',lambda m:SHEET_CAPTION_SVG+m.group(0),source,count=1,flags=re.I)
     svg=template_svg(source,values,config.get('_resolvedFont') or resolve_frame_font(config))
     renderer=QSvgRenderer(QByteArray(svg))
