@@ -392,12 +392,12 @@ function seed(){
     {id:'or4',name:'Выписка из реестра членов СРО',num:'1250',date:'2026-02-25',orgId:'o3',file:'Выписка_СРО.pdf',pages:2}],
    base,
    templates:[
-    {id:'t1',name:'Титульный лист тома (Заказчик А)',type:'Титульный лист',file:'Титул_ЗаказчикА.docx',tags:['Объект','Адрес_Объекта','Шифр_Проекта','Застройщик','Генподрядчик','Система'],locked:false,date:'2026-02-10'},
-    {id:'t2',name:'Реестр (опись) документов — пример шаблона',type:'Реестр',file:'Реестр_ГОСТ_Р_51811.docx',tags:['Объект','Система','Шифр_Проекта'],locked:false,date:'2026-02-10'},
-    {id:'t3',name:'АОСР — пример формы',type:'АОСР',file:'АОСР_РД-11-02-2006.docx',tags:['Объект','Адрес_Объекта','Номер_Акта','Дата_АОСР','Наименование_Работ','Место_Работ','Шифр_РД','Материалы','Приложения','Дата_Начала','Дата_Окончания','Нормативы','Последующие_Работы','ФИО_Прораб','Должность_Прораб'],locked:true,date:'2026-01-15'},
-    {id:'t4',name:'Акт входного контроля (АИК)',type:'АИК',file:'АИК_входной_контроль.docx',tags:['Объект','Номер_Акта','Материалы'],locked:true,date:'2026-01-15'},
-    {id:'t5',name:'АООК — пример формы',type:'АООК',file:'АООК_РД-11-02-2006.docx',tags:['Объект','Номер_Акта','Наименование_Работ'],locked:true,date:'2026-01-15'},
-    {id:'t6',name:'Титульный лист тома (Заказчик Б)',type:'Титульный лист',file:'Титул_ЗаказчикБ.docx',tags:['Объект','Адрес_Объекта','Техзаказчик','Система'],locked:false,date:'2026-03-02'}],
+    {id:'t1',name:'Титульный лист тома (Заказчик А)',type:'Титульный лист',file:'Титул_ЗаказчикА.docx',tags:['Объект.Наименование','Объект.Адрес','Объект.Шифр','Участники.Застройщик.Наименование','Участники.Генподрядчик.Наименование','Раздел.Наименование'],locked:false,date:'2026-02-10'},
+    {id:'t2',name:'Реестр (опись) документов — пример шаблона',type:'Реестр',file:'Реестр_ГОСТ_Р_51811.docx',tags:['Объект.Наименование','Раздел.Наименование','Объект.Шифр'],locked:false,date:'2026-02-10'},
+    {id:'t3',name:'АОСР — пример формы',type:'АОСР',file:'АОСР_РД-11-02-2006.docx',tags:['Объект.Наименование','Объект.Адрес','АОСР.Номер','АОСР.Дата','АОСР.Работы','АОСР.МестоРабот','АОСР.РабочаяДокументация','АОСР.Материалы','АОСР.Приложения','АОСР.Начало','АОСР.Окончание','АОСР.Нормативы','АОСР.ПоследующиеРаботы','Подписанты.ПредставительСтроительства.ФамилияИнициалы','Подписанты.ПредставительСтроительства.Должность'],locked:true,date:'2026-01-15'},
+    {id:'t4',name:'Акт входного контроля (АИК)',type:'АИК',file:'АИК_входной_контроль.docx',tags:['Объект.Наименование','АОСР.Номер','АОСР.Материалы'],locked:true,date:'2026-01-15'},
+    {id:'t5',name:'АООК — пример формы',type:'АООК',file:'АООК_РД-11-02-2006.docx',tags:['Объект.Наименование','АОСР.Номер','АОСР.Работы'],locked:true,date:'2026-01-15'},
+    {id:'t6',name:'Титульный лист тома (Заказчик Б)',type:'Титульный лист',file:'Титул_ЗаказчикБ.docx',tags:['Объект.Наименование','Объект.Адрес','Участники.Техзаказчик.Наименование','Раздел.Наименование'],locked:false,date:'2026-03-02'}],
    profiles:[
     {id:'pf0',family:'A',name:'Заказчик А — АО «ГородИнвест»',version:1,date:'2026-02-10',templates:['t1','t2','t3','t4','t5'],quality:'once',naming:'{Тип}_{Номер}_{Наименование}',reqFields:['works','place','rd'],reqDocs:['Титульный лист','Реестр','АОСР'],extra:'Титульный лист с логотипом застройщика.',logo:''},
     {id:'pf1',family:'A',name:'Заказчик А — АО «ГородИнвест»',version:2,date:'2026-05-15',templates:['t1','t2','t3','t4','t5'],quality:'once',naming:'{№}_{Тип}_{Номер}',reqFields:['works','place','rd','norms'],reqDocs:['Титульный лист','Реестр','АОСР','АИК'],extra:'Реестр дополнительно в XLSX. Сертификаты — отдельным разделом в конце тома.',logo:''},
@@ -461,13 +461,7 @@ function getPath(o,path){return path.split('.').reduce((c,k)=>c==null?c:(k[0]===
 const ENT_NAME={proj:'объект',sys:'система',act:'акт',aik:'АИК',jr:'журнал',mat:'материал',base:'паспорт из базы',org:'организация',per:'представитель',ord:'приказ',pf:'профиль заказчика',tpl:'шаблон'};
 function entLabel(ent,o){if(!o)return'';if(ent==='proj')return ENT_NAME.proj+' «'+(o.name||'')+'»';return(ENT_NAME[ent]||ent)+' «'+(o.num||o.short||o.code||o.fioShort||mName(o)||o.name||'')+'»'}
 function slug(s){return String(s).replace(/[«»"]/g,'').replace(/[\\/:*?<>|]/g,'').replace(/\s+/g,'_').slice(0,48)}
-const TAGS=[
- ['Объект','Карточка объекта',(a,p)=>p?.name],['Адрес_Объекта','Карточка объекта',(a,p)=>p?.address],['Шифр_Проекта','Карточка объекта',(a,p)=>p?.cipher],
- ['Генподрядчик','Карточка объекта',(a,p)=>p?.genContractor],['Застройщик','Карточка объекта',(a,p)=>p?.developer],['Техзаказчик','Карточка объекта',(a,p)=>p?.techCustomer],['Номер_Договора','Карточка объекта',(a,p)=>p?.contract],
- ['Система','Система',(a,p,s)=>s?s.code+' — '+s.name:''],['Шифр_РД','Карточка акта',a=>a?.rd],['Номер_Акта','Карточка акта',a=>a?.num],['Дата_АОСР','Карточка акта',a=>a?fmtD(a.date):''],
- ['Наименование_Работ','Карточка акта',a=>a?.works],['Место_Работ','Карточка акта',a=>a?.place],['Дата_Начала','Карточка акта',a=>a?fmtD(a.start):''],['Дата_Окончания','Карточка акта',a=>a?fmtD(a.end):''],
- ['Нормативы','Карточка акта',a=>a?.norms],['Последующие_Работы','Карточка акта',a=>a?.next],['Материалы','Материалы объекта',(a,p)=>a&&p?a.materials.map(m=>mName(pMat(p,m))||'[удалён]').join('; '):''],
- ['Приложения','Вычисляется программой',(a,p,s)=>a?appsText(a,s):''],['ФИО_Прораб','Подписанты (подпрофиль / акт)',(a,p,s)=>a&&s?person(signer(a,spOf(s,a.subs[0]),1))?.fioShort:''],['Должность_Прораб','Подписанты (подпрофиль / акт)',(a,p,s)=>a&&s?person(signer(a,spOf(s,a.subs[0]),1))?.position:'']];
+const TAGS=[];
 
 /* ---------- иконки ---------- */
 const ICP={home:'<path d="M2.5 7.5 8 3l5.5 4.5"/><path d="M4 6.5v7h8v-7"/>',bld:'<rect x="3" y="2.5" width="10" height="11" rx="1"/><path d="M6 5.5h1M9 5.5h1M6 8h1M9 8h1M7 13.5v-2.5h2v2.5"/>',sys:'<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/>',
@@ -856,7 +850,7 @@ function libOrgs(tab,sel){let body='';
  if(tab==='orgs'){const o=org(sel);
   body=`<div class="row mb"><span class="mut small grow">Организации общие для всех объектов.</span>${B(ic('plus')+'Организация','libNew','data-k="org"','pri')}</div>
   <div class="tw"><table class="tbl"><thead><tr><th>Краткое наименование</th><th>Роль</th><th>ИНН</th><th>СРО</th><th class="num">Представителей</th></tr></thead><tbody>${S.lib.orgs.map(x=>`<tr class="cl${x.id===sel?' sel':''}" data-a="nav" data-h="#/lib/orgs/${x.id}"><td><b style="font-weight:550">${esc(x.short)}</b></td><td class="t2">${esc(x.role)}</td><td class="t2">${esc(x.inn)}</td><td class="t2">${esc(x.sro||'—')}</td><td class="num">${S.lib.people.filter(p=>p.orgId===x.id).length}</td></tr>`).join('')}</tbody></table></div>
-  ${o?`<div class="card mt" style="margin-top:16px"><h3>${esc(o.short)}<span class="r">${B(ic('trash'),'del',`data-ent="org" data-id="${o.id}" title="Удалить"`,'sm icon ghost')}</span></h3><div class="g3">${F('Полное наименование','org',o.id,'full',o.full,{span:1})}${F('Краткое наименование','org',o.id,'short',o.short,{rr:1})}${F('Роль','org',o.id,'role',o.role,{opts:ORG_ROLES,rr:1})}${F('ИНН','org',o.id,'inn',o.inn)}${F('ОГРН','org',o.id,'ogrn',o.ogrn)}${F('Членство в СРО','org',o.id,'sro',o.sro)}${F('Адрес','org',o.id,'address',o.address,{span:1})}</div></div>`:''}`}
+  ${o?`<div class="card mt" style="margin-top:16px"><h3>${esc(o.short)}<span class="r">${B(ic('trash'),'del',`data-ent="org" data-id="${o.id}" title="Удалить"`,'sm icon ghost')}</span></h3><div class="g3">${F('Полное наименование','org',o.id,'full',o.full,{span:1})}${F('Краткое наименование','org',o.id,'short',o.short,{rr:1})}${F('Роль','org',o.id,'role',o.role,{opts:ORG_ROLES,rr:1})}${F('ИНН','org',o.id,'inn',o.inn)}${F('ОГРН','org',o.id,'ogrn',o.ogrn)}${F('КПП','org',o.id,'kpp',o.kpp||'')}${F('Телефон','org',o.id,'phone',o.phone||'')}${F('Электронная почта','org',o.id,'email',o.email||'')}${F('Членство в СРО','org',o.id,'sro',o.sro)}${F('Адрес','org',o.id,'address',o.address,{span:1})}</div></div>`:''}`}
  if(tab==='people'){const x=person(sel);
   body=`<div class="row mb"><span class="mut small grow">Представители общие для всех объектов. Подписанты в подпрофилях и актах выбираются из этого списка.</span>${B(ic('plus')+'Представитель','libNew','data-k="per"','pri')}</div>
   <div class="tw"><table class="tbl"><thead><tr><th>ФИО</th><th>Должность</th><th>Организация</th><th>Роль в актах</th><th>НРС</th></tr></thead><tbody>${S.lib.people.map(p=>`<tr class="cl${p.id===sel?' sel':''}" data-a="nav" data-h="#/lib/people/${p.id}"><td><b style="font-weight:550">${esc(p.fioShort)}</b></td><td class="t2">${esc(p.position)}</td><td class="t2">${esc(org(p.orgId)?.short||'—')}</td><td class="t2">${esc(ROLE_SH[p.docRole]||'—')}</td><td class="t2">${esc(p.nrs||'—')}</td></tr>`).join('')}</tbody></table></div>
@@ -890,16 +884,16 @@ function libProfiles(tab,sel){let body='';
    <div class="small mut" style="margin:16px 0 8px;font-weight:600">Обязательные документы (нужен шаблон)</div><div class="row">${TPL_TYPES.map(t=>`<span class="chk${x.reqDocs.includes(t)?' on':''}" data-a="pfArr" data-id="${x.id}" data-arr="reqDocs" data-v="${esc(t)}">${esc(t)}</span>`).join('')}</div>
    <div class="small mut" style="margin:16px 0 8px;font-weight:600">Шаблоны профиля</div><div class="lst">${S.lib.templates.map(t=>`<label><input type="checkbox" data-a="pfArr" data-id="${x.id}" data-arr="templates" data-v="${t.id}" ${x.templates.includes(t.id)?'checked':''}><span class="grow">${esc(t.name)}</span><span class="pill p-n">${esc(t.type)}</span></label>`).join('')}</div></div>`:''}</div>`}
  if(tab==='templates'){const known=knownTags();
-  body=`<div class="row mb"><span class="mut small grow">Шаблоны Word (.docx) с тегами вида <code class="tag">{{Номер_Акта}}</code>. При загрузке теги извлекаются из файла и сверяются со справочником.</span>${B(ic('up')+'Загрузить шаблон .docx','tplAdd','','pri')}</div>
+  body=`<div class="row mb"><span class="mut small grow">Шаблоны Word (.docx) с тегами вида <code class="tag">{{АОСР.Номер}}</code>. При загрузке теги извлекаются из файла и сверяются со справочником.</span>${B(ic('up')+'Загрузить шаблон .docx','tplAdd','','pri')}</div>
   <div class="tw"><table class="tbl"><thead><tr><th>Шаблон</th><th>Тип</th><th>Теги</th><th>Файл</th><th style="width:80px"></th></tr></thead><tbody>${S.lib.templates.map(t=>{const unk=t.tags.filter(x=>!known.has(x));
    return`<tr><td><input value="${esc(t.name)}" data-ent="tpl" data-id="${t.id}" data-f="name">${t.locked?'<div class="t2" style="margin-top:3px">Системный шаблон по РД</div>':''}</td><td style="width:170px">${F('','tpl',t.id,'type',t.type,{opts:TPL_TYPES,rr:1})}</td><td class="t2">${t.tags.length} тегов${unk.length?`<br><span class="pill p-r">неизвестные: ${esc(unk.join(', '))}</span>`:''}</td><td class="t2">${esc(t.file)}<br>${fmtD(t.date)}</td><td><div class="row" style="flex-wrap:nowrap;gap:4px">${B(ic('up'),'tplReplace',`data-id="${t.id}" title="Заменить файл"`,'sm icon ghost')}${t.locked?'':B(ic('trash'),'del',`data-ent="tpl" data-id="${t.id}" title="Удалить"`,'sm icon ghost')}</div></td></tr>`}).join('')}</tbody></table></div>`}
  if(tab==='tags'){const all=S.projects.flatMap(p=>p.systems.flatMap(s=>s.acts.map(a=>({a,s,p}))));const cur=all.find(x=>x.a.id===S.ui.tagAct)||all[0];
   body=`<div class="row mb"><span class="mut small">Пример значений для акта:</span>${F('','ui','','tagAct',cur?.a.id||'',{opts:all.map(x=>[x.a.id,x.p.name+' · '+x.s.code+' · '+x.a.num]),rr:1,style:'width:360px'})}</div>
   <div class="tw"><table class="tbl"><thead><tr><th>Тег</th><th>Источник</th><th>Значение</th></tr></thead><tbody>${TAGS.map(([t,src,fn])=>`<tr><td><code class="tag">{{${t}}}</code></td><td class="t2">${esc(src)}</td><td class="small">${esc(cut(cur?fn(cur.a,cur.p,cur.s)||'—':'—',110))}</td></tr>`).join('')}
-  ${[...new Set(S.projects.flatMap(p=>p.extra.map(x=>slug(x.k))))].map(t=>`<tr><td><code class="tag">{{${esc(t)}}}</code></td><td class="t2">Доп. реквизит объекта</td><td class="small">${esc(cur?.p.extra.find(x=>slug(x.k)===t)?.v||'—')}</td></tr>`).join('')}</tbody></table></div>`}
+  ${[...new Set(S.projects.flatMap(p=>p.extra.map(x=>'ДопПоля.'+slug(x.k))))].map(t=>`<tr><td><code class="tag">{{${esc(t)}}}</code></td><td class="t2">Доп. реквизит объекта</td><td class="small">${esc(cur?.p.extra.find(x=>slug(x.k)===t)?.v||'—')}</td></tr>`).join('')}</tbody></table></div>`}
  return`<div class="page">${hdr('Профили и шаблоны','Требования заказчиков к оформлению ИД')}${tabs('#/lib',tab,[['profiles','Профили заказчиков',S.lib.profiles.length],['templates','Шаблоны Word',S.lib.templates.length],['tags','Справочник тегов',TAGS.length]])}${body}</div>`}
 function pfUse(pf){const o=[];S.projects.forEach(p=>p.systems.forEach(s=>s.subprofiles.forEach(sp=>{if(sp.profileId===pf.id)o.push({p,s,sp})})));return o}
-function knownTags(){return new Set(TAGS.map(x=>x[0]).concat(S.projects.flatMap(p=>p.extra.map(x=>slug(x.k)))))}
+function knownTags(){return new Set(TAGS.map(x=>x[0]).concat(S.projects.flatMap(p=>p.extra.map(x=>'ДопПоля.'+slug(x.k)))))}
 
 /* ---- Сборка тома ---- */
 V.build=(r)=>{const pid=r[1]||S.ui.build.pid;const p=proj(pid)||S.projects[0];
@@ -1462,6 +1456,7 @@ A.schemeVer=d=>{if(!guard('sys:'+d.s))return;const s=getEnt('sys',d.s),sc=s.sche
 </script>
 <script src="desktop.js"></script>
 <script src="pdf-export.js"></script>
+<script src="tag-schema.js"></script>
 <script src="word-templates.js"></script>
 <script src="folders.js"></script>
 <script src="executions.js"></script>
@@ -1470,6 +1465,7 @@ A.schemeVer=d=>{if(!guard('sys:'+d.s))return;const s=getEnt('sys',d.s),sc=s.sche
 <script src="manual.js"></script>
 <script src="workflow.js"></script>
 <script src="quantities.js"></script>
+<script src="document-tags.js"></script>
 <script src="card-history.js"></script>
 <link rel="stylesheet" href="card-history.css">
 <link rel="stylesheet" href="workflow.css">

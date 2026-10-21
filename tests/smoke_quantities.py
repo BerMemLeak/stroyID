@@ -34,7 +34,7 @@ def ready(ok):
  assert(!quantityIssues(a).length,'Valid rows rejected');
  const v=volumeList(p).find(v=>v.s),ctx=wordContext(p,v,'quantity:'+a.id);
  assert(ctx.collections.Объемы.length===2&&ctx.collections.Объемы[0].Количество==='12,5','Rows lost');
- assert(ctx.values.ФИО_Подписант_5&&ctx.values.ФИО_Подписант_3,'Act signers missing');
+ assert(ctx.values['Подписанты.ИсполнительРабот.ФамилияИнициалы']&&ctx.values['Подписанты.СтройконтрольПодрядчика.ФамилияИнициалы'],'Act signers missing');
  const plan=pdfPlan(p,[v]),docs=plan.volumes[0].documents,actIndex=docs.findIndex(d=>d.id==='a'+a.id),q=docs[actIndex+1];
  assert(q.id==='quantity:'+a.id&&q.builtinTemplate==='quantity','Wrong attachment order/source');
  assert(docs[actIndex].html.includes(quantityMarker(a)),'Act has no page marker');

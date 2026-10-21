@@ -17,22 +17,7 @@ const WORD_SECTIONS=[
  ['instr','Документ для эксплуатации','Инструкции и документы для эксплуатации','Документация для эксплуатации'],
  ['other','Иной документ','Другие шаблоны','Дополнительно']
 ];
-const WORD_FIELDS=[
- ['Примечание_Акта','Карточка акта'],
- ...DOC_ROLES.flatMap((role,i)=>['Полномочия','НРС','Реквизиты_Организации','Адрес_Организации','СРО_Организации'].map(key=>[key+'_Подписант_'+(i+1),role])),
- ['Том','Название выбранного тома'],['Год','Год сборки'],['Проектировщик','Проектная организация'],
- ['Эксплуатирующая_Организация','Карточка объекта'],['Название_Документа','Карточка документа'],
- ['Номер_Документа','Карточка документа'],['Дата_Документа','Карточка документа'],
- ['Дата_Акта','Карточка акта'],['Тип_Акта','Карточка акта'],['Материал','Карточка входного контроля'],
- ['Количество','Карточка входного контроля'],['Документы_Качества','Документы материалов'],['Примечание','Карточка документа'],
- ['Содержание','Записи журнала / содержание реестра'],['Реестр','Содержание реестра'],
- ...DOC_ROLES.flatMap((r,i)=>[['Подписант_'+(i+1),r],['ФИО_Подписант_'+(i+1),r],['Должность_Подписант_'+(i+1),r],['Организация_Подписант_'+(i+1),r]]),
- ['Реестр.Номер','Повторяемая строка таблицы реестра'],['Реестр.Тип','Повторяемая строка таблицы реестра'],
- ['Реестр.Наименование','Повторяемая строка таблицы реестра'],['Реестр.Номер_Дата','Повторяемая строка таблицы реестра'],['Реестр.Листы','Фактические страницы итогового PDF'],
- ['Строки.Номер','Повторяемая строка журнала'],...Array.from({length:20},(_,i)=>['Строки.Колонка_'+(i+1),'Значение колонки журнала']),
- ['Фото.Номер','Повторяемая строка фототаблицы'],['Фото.Подпись','Подпись фотографии'],['Фото.Изображение','Фотография из карточки акта']
-];
-const wordOldKnownTags=knownTags;knownTags=()=>new Set([...wordOldKnownTags(),...WORD_FIELDS.map(x=>x[0])]);
+const WORD_FIELDS=[];
 const wordOldEnsure=ensureWorkspace;ensureWorkspace=()=>{wordOldEnsure();if(!S)return;S.projects.forEach(p=>{p.wordTemplates=p.wordTemplates||{};p.wordProfileTemplates=p.wordProfileTemplates||{};});};
 function wordKey(t){return t.section||WORD_SECTIONS.find(x=>x[1]===t.type)?.[0]||'other';}
 function wordChoice(p,vol,key){
@@ -45,47 +30,6 @@ function wordUIContext(){
  const p=proj(S.ui.wordObject)||S.projects[0]||null,profile=prof(S.ui.wordProfile);
  if(p){p.wordTemplates=p.wordTemplates||{};p.wordProfileTemplates=p.wordProfileTemplates||{};if(profile)p.wordProfileTemplates[profile.id]=p.wordProfileTemplates[profile.id]||{};}
  return {p,profile,map:p?(profile?p.wordProfileTemplates[profile.id]:p.wordTemplates):null};
-}
-function wordContext(p,vol={},id='title'){
- let s=vol.s||null,a=null,k=null,j=null,record=null,m=null;
- for(const system of p.systems){
-  a=system.acts.find(x=>'a'+x.id===id||'p'+x.id===id);
-  k=system.aik.find(x=>'k'+x.id===id);
-  j=system.journals.find(x=>'j'+x.id===id);
-  record=system.sketches.find(x=>'sk'+x.id===id)||system.trials.find(x=>'trial'+x.id===id);
-  if(!record)for(const act of system.acts){record=act.schemes.find(x=>'c'+x.id===id)||act.tests.find(x=>'t'+x.id===id);if(record)break;}
-  if(a||k||j||record||'ss'+system.id===id){s=system;if('ss'+system.id===id)record=system.scheme;break;}
- }
- record=record||p.admin.find(x=>'admin'+x.id===id)||p.surveys.find(x=>'v'+x.id===id)||p.opsDocs.find(x=>'op'+x.id===id);
- j=j||p.journals.find(x=>'j'+x.id===id);
- if(k)m=pMat(p,k.materialId);
- if(!record)for(const material of p.materials){record=mDocs(material).find(x=>'q'+x.id===id||id.startsWith('q'+x.id+'_'));if(record){m=material;break;}}
- const values={};TAGS.forEach(([tag,src,fn])=>{try{values[tag]=fn(a,p,s)||'';}catch(e){values[tag]='';}});
- p.extra.forEach(x=>values[slug(x.k)]=x.v||'');
- Object.assign(values,{Том:vol.title||'',Год:new Date().getFullYear(),Проектировщик:p.designOrg||'',Эксплуатирующая_Организация:p.operator||'',
-  Название_Документа:record?.name||j?.name||a?.works||(k?'Входной контроль: '+mName(m):id==='title'?vol.title||'':id==='reg'?'Реестр документов':''),
-  Номер_Документа:record?.num||a?.num||k?.num||'',Дата_Документа:fmtD(record?.date||a?.date||k?.date||''),
-  Дата_Акта:fmtD(a?.date||k?.date||''),Тип_Акта:a?.type||(k?'АИК':''),Материал:mName(m),Количество:k?.qty||'',
-  Документы_Качества:(m?mDocs(m):a?a.materials.map(x=>pMat(p,x)).filter(Boolean).flatMap(mDocs):[]).map(x=>x.type+' № '+(x.num||'')+' от '+fmtD(x.date)).join('; '),
-  Примечание:record?.note||k?.note||'',Содержание:j?j.rows.map((r,i)=>(i+1)+'. '+j.cols.map((c,k)=>c+': '+(r.c[k]||'')).join('; ')).join('\n'):'',Реестр:''});
- if(k){values.Номер_Акта=k.num||'';values.Дата_АОСР=fmtD(k.date);}
- values.Примечание_Акта=a?.note||'';
- const sp=vol.sp||(s&&a?spOf(s,a.subs[0]):s?.subprofiles?.[0]);
- for(let i=0;i<DOC_ROLES.length;i++){
-  const per=a&&sp?person(signer(a,sp,i)):person(sp?.signers?.['r'+i]),organization=org(per?.orgId);
-  values['ФИО_Подписант_'+(i+1)]=per?.fioShort||per?.fio||'';values['Должность_Подписант_'+(i+1)]=per?.position||'';
-  values['Организация_Подписант_'+(i+1)]=organization?.full||organization?.short||'';
-  values['Полномочия_Подписант_'+(i+1)]=per?.authority||'';
-  values['НРС_Подписант_'+(i+1)]=per?.nrs ? 'НРС '+per.nrs : '';
-  values['Реквизиты_Организации_Подписант_'+(i+1)]=[organization?.full||organization?.short,organization?.ogrn?'ОГРН '+organization.ogrn:'',organization?.inn?'ИНН '+organization.inn:''].filter(Boolean).join(', ');
-  values['Адрес_Организации_Подписант_'+(i+1)]=organization?.address||'';
-  values['СРО_Организации_Подписант_'+(i+1)]=organization?.sro||'';
-  values['Подписант_'+(i+1)]=[per?.position,per?.fioShort||per?.fio,organization?.short,per?.authority].filter(Boolean).join(', ');
- }
- values.ФИО_Прораб=values.ФИО_Подписант_2;values.Должность_Прораб=values.Должность_Подписант_2;
- const collections={Строки:j?j.rows.map((r,i)=>Object.fromEntries([['Номер',i+1],...j.cols.map((_,k)=>['Колонка_'+(k+1),r.c[k]||''])])):[],
-  Фото:a?a.photos.map((ph,i)=>({Номер:i+1,Подпись:ph.cap||'',Изображение:ph.img||''})):[],Реестр:[]};
- return {values,collections};
 }
 function wordSectionBody(section,p,profile,map){
  const [key,type,label]=section,list=S.lib.templates.filter(t=>wordKey(t)===key),selected=map?.[key]||'',path=profile?'wordProfileTemplates.'+profile.id+'.'+key:'wordTemplates.'+key;
@@ -124,8 +68,8 @@ A.wordPreview=async d=>{try{const {p,profile}=wordUIContext(),t=tpl(d.id);if(!p|
  // Object-wide sections may live in Tom 1 even when the default preview volume is a system.
  const vol=items.length||['title','reg','photos'].includes(key)?base:vols.find(v=>blocksFor(p,v).some(b=>b.key===key&&b.items.length))||base;
  if(!['title','reg','photos'].includes(key))id=blocksFor(p,vol).find(b=>b.key===key)?.items[0]?.id||id;
- const context=wordContext(p,vol,id);
- if(key==='reg'){context.collections.Реестр=registry(p,vol).rows.filter(r=>!r.book).map(r=>({Номер:r.n,Тип:r.type,Наименование:r.name,Номер_Дата:r.nd,Листы:r.from===r.to?String(r.from):r.from+'-'+r.to}));context.values.Реестр=context.values.Содержание=context.collections.Реестр.map(r=>r.Номер+'. '+r.Наименование+' — '+r.Листы).join('\n');}
+ const context=validateDocumentContext(wordContext(p,vol,id),t.tags||[]);
+ if(key==='reg'){context.collections.Реестр=registry(p,vol).rows.filter(r=>!r.book).map(r=>({Номер:r.n,Тип:r.type,Наименование:r.name,Номер_Дата:r.nd,КоличествоСтраниц:r.to-r.from+1,Листы:r.from===r.to?String(r.from):r.from+'-'+r.to}));context.values['Реестр.Текст']=context.values['Документ.Содержание']=context.collections.Реестр.map(r=>r.Номер+'. '+r.Наименование+' — '+r.Листы).join('\n');}
  await desktopTrack(nativeCall('openFilledWord',{key:t.fileKey,...context}));
  }catch(e){modal('Шаблон не заполнен','<p>'+esc(e.message)+'</p>',[{l:'Закрыть'}]);}};
 A.wordSample=async d=>{if(!guard('lib'))return;try{const section=WORD_SECTIONS.find(x=>x[0]===d.section);if(!section)return;const f=await desktopTrack(nativeCall('sampleDocx',{section:section[0],title:section[2]}));
@@ -140,7 +84,7 @@ const wordPreviousSources=pdfSources;pdfSources=(p,vol)=>{
   // Real uploaded PDFs (including signed scans) always remain originals in the assembled file.
   if(source?.kind==='pdf'&&(source.key||source.declaredFile)||source?.kind==='missing'&&item.id.startsWith('a')&&source.error?.includes('связи'))continue;
   if(!t.fileKey){sources.set(item.id,{kind:'missing',error:'загрузите файл выбранного Word-шаблона «'+t.name+'»'});continue;}
-  const context=wordContext(p,vol,item.id);
+  let context;try{context=validateDocumentContext(wordContext(p,vol,item.id),t.tags||[]);}catch(e){sources.set(item.id,{kind:'missing',error:e.message});continue;}
   sources.set(item.id,{kind:item.id==='reg'?'registry':'word',templateKey:t.fileKey,templateName:t.name,...context});
  }
  return sources;

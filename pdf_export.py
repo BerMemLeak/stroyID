@@ -241,10 +241,10 @@ def prepare_export(store, plan):
                     if doc.get('templateKey'):
                         source, _ = store.asset_path(doc['templateKey'])
                         entries = [{'Номер': r['n'], 'Тип': r.get('type', ''),
-                            'Наименование': r.get('name', ''), 'Номер_Дата': r.get('nd', ''),
+                            'Наименование': r.get('name', ''), 'Номер_Дата': r.get('nd', ''), 'КоличествоСтраниц': r['count'],
                             'Листы': str(r['start']) if r['start'] == r['end'] else f"{r['start']}-{r['end']}"} for r in rows]
                         summary = '\n'.join(f"{r['Номер']}. {r['Наименование']} — листы {r['Листы']}" for r in entries)
-                        values = dict(doc.get('values', {}), Реестр=summary, Содержание=summary)
+                        values = {**doc.get('values', {}), 'Реестр.Текст': summary, 'Документ.Содержание': summary}
                         filled = target.with_suffix('.docx')
                         fill_docx(source.read_bytes(), filled, values, {'Реестр': entries})
                         convert_docx_batch([(filled, target)])

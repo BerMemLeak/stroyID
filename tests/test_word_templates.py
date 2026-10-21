@@ -29,7 +29,7 @@ class WordTemplateTests(unittest.TestCase):
         return path
 
     def context(self, source):
-        return {x: 'Значение ' + x for x in inspect_docx(source.read_bytes())['tags'] if '.' not in x}
+        return {x: 'Значение ' + x for x in inspect_docx(source.read_bytes())['tags'] if x not in __import__('document_tags').collection_tags()}
 
     def test_split_runs_headers_styles_and_source_unchanged(self):
         original = self.sample()
@@ -38,18 +38,18 @@ class WordTemplateTests(unittest.TestCase):
         first = root.find('.//{' + W + '}p')
         for child in list(first):
             first.remove(child)
-        for text in ('До {{Об', 'ъект}} после {{Адрес_', 'Объекта}}. {{Объект}}'):
+        for text in ('До {{Объект.', 'Наименование}} после {{Объект.', 'Адрес}}. {{Объект.Наименование}}'):
             run = ET.SubElement(first, '{' + W + '}r')
             ET.SubElement(ET.SubElement(run, '{' + W + '}rPr'), '{' + W + '}b')
             ET.SubElement(run, '{' + W + '}t').text = text
         parts['word/document.xml'] = ET.tostring(root)
-        parts['word/header1.xml'] = (f'<w:hdr xmlns:w="{W}"><w:p><w:r><w:t>{{{{Объект}}}}</w:t></w:r></w:p></w:hdr>').encode()
+        parts['word/header1.xml'] = (f'<w:hdr xmlns:w="{W}"><w:p><w:r><w:t>{{{{Объект.Наименование}}}}</w:t></w:r></w:p></w:hdr>').encode()
         with zipfile.ZipFile(original, 'w') as z:
             for name, body in parts.items():
                 z.writestr(name, body)
         before = original.read_bytes()
         values = self.context(original)
-        values.update(Объект='Дом & «Боец»', Адрес_Объекта='Москва\nПодъезд 1')
+        values.update({'Объект.Наименование':'Дом & «Боец»', 'Объект.Адрес':'Москва\nПодъезд 1'})
         out = fill_docx(before, self.root / 'filled.docx', values)
         new = package(out.read_bytes())
         text = ''.join(ET.fromstring(new['word/document.xml']).itertext())

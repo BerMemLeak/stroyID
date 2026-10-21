@@ -84,7 +84,7 @@ def ready(value):
       if(document.querySelector('[data-ent="proj"][data-f="short"]'))throw Error('Project short-name editor remains');
       if(document.querySelector('#tree a[href="#/p/'+S.projects[0].id+'"] .lb').textContent!==S.projects[0].name)throw Error('Tree does not use full project name');
       const drawing=resourceList(S.projects[0].systems[0])[0];
-      if(drawingContext(S.projects[0],S.projects[0].systems[0],drawing,{}).values.Здание!==S.projects[0].name)throw Error('Drawing frame does not use full project name');
+      if(drawingContext(S.projects[0],S.projects[0].systems[0],drawing,{}).values['Схема.Здание']!==S.projects[0].name)throw Error('Drawing frame does not use full project name');
       save();
       S.projects[0].name='Сохранено после изменения';save();await desktopFlush(true);
       await desktopFlush(true);S.projects[0].name='Сохранено после изменения';save();await desktopFlush(true);

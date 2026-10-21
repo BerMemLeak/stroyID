@@ -366,7 +366,7 @@ drawingContext = (p, s, item, vol, owner = null) => {
     r = workflowDrawingContext(effective, s, item, vol, owner),
     pf = exportProfile(p) || prof(vol?.sp?.profileId);
   r.templateKey = pf?.frameTemplate?.fileKey || p.frameTemplate?.fileKey || r.templateKey;
-  if (org(p.exportIssuer)) r.values.Организация = org(p.exportIssuer).full || org(p.exportIssuer).short;
+  if (org(p.exportIssuer)) r.values['Комплект.Компания.Наименование'] = org(p.exportIssuer).full || org(p.exportIssuer).short;
   r.requireFont = true;
   r.fontKey = S.meta.drawingFont?.fileKey || '';
   return r;
@@ -405,36 +405,8 @@ A.frameProfileReset = d => {
   commit('Возвращена встроенная рамка');
 };
 
-// Company choices affect a generated copy; original object and existing exports remain intact.
-function exportCompanyProject(p) {
-  const issuer = org(p.exportIssuer),
-    customer = org(p.exportCustomer);
-  return {
-    ...p,
-    genContractor: issuer?.full || issuer?.short || p.genContractor,
-    techCustomer: customer?.full || customer?.short || p.techCustomer,
-    logo: issuer ? (issuer.logo || '') : (p.logo || '')
-  };
-}
-const workflowPdfPlan = pdfPlan;
-pdfPlan = (p, vols) => workflowPdfPlan(exportCompanyProject(p), vols);
-const workflowWordContext = wordContext;
-wordContext = (p, v = {}, id = 'title') => {
-  const data = workflowWordContext(exportCompanyProject(p), v, id),
-    issuer = org(p.exportIssuer);
-  data.values.Логотип_Компании = id === 'title' ? (issuer ? (issuer.logo || '') : (p.logo || '')) : '';
-  if (issuer) {
-    data.values.Организация_Подписант_5 = issuer.full || issuer.short;
-    data.values.Реквизиты_Организации_Подписант_5 = [issuer.full || issuer.short, issuer.ogrn?'ОГРН '+issuer.ogrn:'', issuer.inn?'ИНН '+issuer.inn:''].filter(Boolean).join(', ');
-    data.values.Адрес_Организации_Подписант_5 = issuer.address || '';
-    data.values.СРО_Организации_Подписант_5 = issuer.sro || '';
-  }
-  const e = execution(p, v.executionId);
-  data.values.Начало_Выполнения = fmtD(e?.start || '');
-  data.values.Окончание_Выполнения = fmtD(e?.end || '');
-  return data;
-};
-WORD_FIELDS.push(['Логотип_Компании', 'Логотип выбранной компании'], ['Начало_Выполнения', 'Начало выполнения'], ['Окончание_Выполнения', 'Окончание выполнения']);
+// Issuer and recipient belong to the package, not to construction roles.
+function exportCompanyProject(p) { return p; }
 const workflowAssemblyRules = assemblyRules;
 assemblyRules = (p, plan) => {
   const cfg = assemblyPick(p);
@@ -458,9 +430,9 @@ V.build = r => {
     box = document.createElement('div');
   box.innerHTML = workflowBuild(r);
   const opts = [
-    ['', 'Из карточки объекта'], ...S.lib.orgs.map(o => [o.id, o.short || o.full])
+    ['', 'Не выбрана'], ...S.lib.orgs.map(o => [o.id, o.short || o.full])
   ];
-  box.querySelector('.page > .card')?.insertAdjacentHTML('beforeend', `<div class="g2 mt">${F('От какой компании','proj',p.id,'exportIssuer',p.exportIssuer||'',{opts,rr:1})}${F('Для какого заказчика','proj',p.id,'exportCustomer',p.exportCustomer||'',{opts,rr:1})}</div><div class="row mt"><label><input type="checkbox" data-assembly="includeCommon" data-p="${p.id}" ${c.includeCommon!==false?'checked':''}> Общая документация</label><label><input type="checkbox" data-assembly="includeOperations" data-p="${p.id}" ${c.includeOperations!==false?'checked':''}> ИД для эксплуатации</label></div>`);
+  box.querySelector('.page > .card')?.insertAdjacentHTML('beforeend', `<div class="g2 mt">${F('Компания выпуска комплекта','proj',p.id,'exportIssuer',p.exportIssuer||'',{opts,rr:1})}${F('Получатель комплекта','proj',p.id,'exportCustomer',p.exportCustomer||'',{opts,rr:1})}</div><div class="row mt"><label><input type="checkbox" data-assembly="includeCommon" data-p="${p.id}" ${c.includeCommon!==false?'checked':''}> Общая документация</label><label><input type="checkbox" data-assembly="includeOperations" data-p="${p.id}" ${c.includeOperations!==false?'checked':''}> ИД для эксплуатации</label></div>`);
   return box.innerHTML;
 };
 document.addEventListener('change', e => {

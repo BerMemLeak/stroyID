@@ -21,7 +21,7 @@ class QuantitiesTests(unittest.TestCase):
     def test_collection_repeats_and_original_is_unchanged(self):
         source = Path(__file__).resolve().parents[1] / 'ui/reference-templates/quantities.docx'
         data = source.read_bytes()
-        values = {k: '' for k in inspect_docx(data)['tags'] if '.' not in k}
+        values = {k: 'TEST' for k in inspect_docx(data)['tags'] if k not in __import__('document_tags').collection_tags()}
         with tempfile.TemporaryDirectory() as root:
             target = Path(root) / 'filled.docx'
             fill_docx(data, target, values, {'Объемы': [
@@ -45,7 +45,7 @@ class QuantitiesTests(unittest.TestCase):
                     for _ in range(3):writer.add_blank_page(595, 842)
                     writer.write(target);writer.close()
             template = Path(__file__).resolve().parents[1] / 'ui/reference-templates/quantities.docx'
-            values = {k: '' for k in inspect_docx(template.read_bytes())['tags'] if '.' not in k}
+            values = {k: 'TEST' for k in inspect_docx(template.read_bytes())['tags'] if k not in __import__('document_tags').collection_tags()}
             act = {'id':'act', 'kind':'html', 'html':'<p>Ведомость: '+marker+' л.</p>',
                    'attachmentPageRefs':{marker:'quantity:one'}}
             plan = {'volumes':[{'documents':[{'kind':'registry'},act,

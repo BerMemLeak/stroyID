@@ -86,6 +86,8 @@ def build():
         report['platform'] = platform.platform()
         report['stage'] = 'unit-tests'
         command([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-v'], 120, stage=report['stage'])
+        report['stage'] = 'document-tags'
+        command([sys.executable, 'tests/smoke_document_tags.py'], 120, stage=report['stage'])
         report['stage'] = 'qt-interface'
         command([sys.executable, 'tests/smoke_qt.py'], 120, stage=report['stage'])
         report['stage'] = 'qt-pdf-export'
