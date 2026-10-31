@@ -21,7 +21,7 @@ function drawingContext(p, s, item, vol, owner = null) {
   const date = a?.date || (!a ? s.sectionDate : '') || '';
   const stampDate = /^\d{4}-\d{2}-\d{2}$/.test(date) ? '"' + date.slice(8) + '" ' + date.slice(5, 7) + '.' + date.slice(0, 4) + 'г.' : fmtD(date);
   const base=wordContext(p,{...(vol||{}),s,sp,executionId},a?'a'+a.id:'title');
-  return {templateKey: record.frameTemplate?.fileKey || record.frameTemplateKey || '', signerRows: rows, captionEnabled: true, sheetPlaces: {...record.sheetPlaces}, values: {...base.values,
+  return {templateKey: record.frameTemplate?.fileKey || record.frameTemplateKey || '', signerRows: rows, captionEnabled: true, preserveDrawingNumber: !!record.preserveDrawingNumber, captionWork: record.captionWork, sheetPlaces: {...record.sheetPlaces}, values: {...base.values,
     'Схема.Шифр': designation, 'Объект.Наименование': p.name || '', 'Схема.Здание': p.name || '',
     'Схема.Номер': String(record.num || a?.num || code).trim(),
     'АОСР.Работы': String(a?.works || record.name || item.name || '').trim(),

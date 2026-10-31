@@ -50,6 +50,12 @@ class DrawingFrameTests(unittest.TestCase):
     template='<svg xmlns="http://www.w3.org/2000/svg"><text>{{Рамка.Разработал}}</text></svg>')
 
 
+ def test_imported_sheet_preserves_its_number_and_specific_work(self):
+  values={'Схема.Номер':'АР-1.19.3','АОСР.Работы':'Демонтаж покрытий пола'}
+  out=frame_sheet_values({'captionEnabled':True,'preserveDrawingNumber':True,
+   'captionWork':'Выемка грунта','sheetPlaces':{'1':'в подвале'}},1,values)
+  self.assertEqual(out['Лист.НомерСхемы'],'АР-1.19.3')
+  self.assertEqual(out['Лист.Надпись'],'Исполнительная схема № АР-1.19.3 «Выемка грунта в подвале»')
  def test_caption_uses_only_explicit_sheet_place(self):
   cfg={'captionEnabled':True,'sheetPlaces':{'3':'на 3-м этаже в осях 3–21/Ж–Ф, отм. +7.000'}}
   base={'Схема.Номер':'АР-1.1','АОСР.Работы':'Разборка деревянных плинтусов','АОСР.МестоРабот':'ОБЩЕЕ МЕСТО АКТА'}

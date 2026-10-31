@@ -72,7 +72,7 @@ function documentValues(c){
   for(const [key,field] of Object.entries({Дата:'date',Начало:'start',Окончание:'end'}))date('АОСР.'+key,a[field],'Карточка акта '+a.num,actRef);
   const mats=a.materials.map(id=>pMat(p,id));
   if(mats.some(x=>!x))issues.push({tag:'АОСР.Материалы',message:'Материал акта удалён',ref:'#/a/'+a.id+'/mat'});
-  put('АОСР.Материалы',mats.filter(Boolean).map(x=>[mName(x),mDocs(x).map(d=>[d.type,d.num?'№ '+d.num:'',d.date?'от '+fmtD(d.date):''].filter(Boolean).join(' ')).join('; ')].filter(Boolean).join(' — ')).join('; '),'Материалы текущего акта',actRef);
+  put('АОСР.Материалы',mats.filter(Boolean).map(x=>[mName(x),mDocs(x).map(d=>[d.type,d.num?'№ '+d.num:'',d.date?'от '+fmtD(d.date):''].filter(Boolean).join(' ')).join('; ')].filter(Boolean).join(' — ')).join('; ')+(a.materialsNote?(mats.length?'; ':'')+a.materialsNote:''),'Материалы текущего акта',actRef);
   put('АОСР.Приложения',actAttachmentEntries(a,s).map((x,i)=>(i+1)+'. '+x.name+(x.pages?', '+x.pages+' л.':'')).join('\n'),'Приложения текущего акта',actRef);
   // Point 4 deliberately excludes quantity statements, photos and certificates.
   const evidence=[...a.schemes.map(x=>({name:['Исполнительная схема',x.num?'№ '+x.num:'',x.name].filter(Boolean).join(' '),pages:x.pages})),...linkedSchemes(a,s).filter(x=>x.item).map(({link,item})=>({name:'Исполнительная схема '+(item.record.num||item.name),pages:Number(link.to)-Number(link.from)+1})),...a.tests,...a.testLinks.map(id=>s.trials.find(x=>x.id===id)).filter(Boolean)];
@@ -153,3 +153,14 @@ function documentAikHtml(k,p,s){
  const c=wordContext(p,{s,executionId:k.executionId},'k'+k.id),g=t=>esc(String(c.values[t]??''));
  return `<h2>АКТ № ${g('АИК.Номер')}</h2><p align="center"><b>входного контроля материалов и изделий</b></p><p>Объект: ${g('Объект.Наименование')}</p><p>Система: ${g('Раздел.Код')}. Дата: ${g('АИК.Дата')}</p><p>Материал: ${g('АИК.Материал')}</p><p>Количество: ${g('АИК.Количество')}</p><p>Документы качества: ${g('Документ.ДокументыКачества')}</p><p>Примечание: ${g('Документ.Примечание')}</p><p>Заключение комиссии: ____________________________________</p><p>Подписи: ____________________________________</p>`;
 }
+
+const materialNoteActView=V.a;
+V.a=r=>{
+ const view=materialNoteActView(r),a=getEnt('act',r[1]);
+ if(!a||r[2]!=='mat')return view;
+ const box=document.createElement('div');box.innerHTML=view;
+ box.querySelector('.page')?.insertAdjacentHTML('beforeend',`<div class="card">${F('Пояснение к материалам (пункт 3)','act',a.id,'materialsNote',a.materialsNote||'',{ta:1})}</div>`);
+ return box.innerHTML;
+};
+const materialNoteNewAct=newActObj;
+newActObj=(s,src)=>({...materialNoteNewAct(s,src),materialsNote:src?.materialsNote||''});

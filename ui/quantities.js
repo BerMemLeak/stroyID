@@ -35,9 +35,15 @@ const quantityBlocks=blocksFor;
 blocksFor=(p,v)=>{
  const blocks=quantityBlocks(p,v);
  for(const block of blocks){
-  const items=[];
-  for(const item of block.items){items.push(item);const a=v.s?.acts.find(a=>item.id==='a'+a.id);
-   if(a&&quantityEnabled(a))items.push({id:'quantity:'+a.id,type:'Ведомость объёмов работ',name:quantityName(a),nd:'к '+a.num,pages:1,file:'Ведомость_'+a.num+'.docx',ref:'#/a/'+a.id+'/quantity'});
+  const items=[...block.items];
+  for(const a of v.s?.acts||[]){
+   let pos=items.findIndex(item=>item.id==='a'+a.id);
+   if(pos<0||!quantityEnabled(a))continue;
+   if(assemblyConfig(p,v).quantityPosition==='afterSchemes'){
+    for(let i=pos+1;i<items.length&&items[i].ownerActId===a.id;i++)
+     if(items[i].sourceBlock==='schemes')pos=i;
+   }
+   items.splice(pos+1,0,{id:'quantity:'+a.id,type:'Ведомость объёмов работ',name:quantityName(a),nd:'к '+a.num,pages:1,file:'Ведомость_'+a.num+'.docx',ref:'#/a/'+a.id+'/quantity',ownerActId:a.id,sourceBlock:'aosr'});
   }block.items=items;
  }
  const count=blocks.filter(b=>!b.off&&!b.auto).reduce((sum,b)=>sum+b.items.length,0),reg=blocks.find(b=>b.auto);
@@ -78,7 +84,7 @@ assemblyPlans=(p,c)=>{
 };
 function quantityPanel(a){
  const on=quantityEnabled(a),rows=quantityRows(a);
- return `<div class="card"><h3>Ведомость объёмов выполненных работ</h3><label class="row"><input type="checkbox" data-quantity-toggle="${a.id}" ${on?'checked':''}>Включать ведомость в комплект этого АОСР</label><p class="small mut">Каждая строка — отдельный объём. Файл формируется из Word-шаблона и располагается сразу после АОСР. Расчёты и вычеты автоматически не выполняются.</p>${on?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>№</th><th>Работа / участок</th><th>Место выполнения</th><th>Ед. изм.</th><th>Количество</th><th></th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td>${[['name','Например: монтаж лотка'],['place','Оси, этаж, отметка'],['unit','м, м², шт.'],['qty','0,00']].map(([key,hint])=>`<td><input aria-label="${hint}, строка ${i+1}" data-quantity-act="${a.id}" data-quantity-row="${r.id}" data-quantity-field="${key}" value="${esc(String(r[key]??''))}" placeholder="${esc(hint)}" ${key==='qty'?'inputmode="decimal"':''} style="min-width:${['name','place'].includes(key)?'180':'80'}px"></td>`).join('')}<td>${B('Удалить','quantityRemove',`data-id="${a.id}" data-row="${r.id}"`,'sm')}</td></tr>`).join('')}</tbody></table></div><div class="row mt">${B('Добавить строку','quantityAdd',`data-id="${a.id}"`,'pri')}${B('Скачать ведомость DOCX','quantityDownload',`data-id="${a.id}"`)}</div><label class="fld mt"><span>Пояснение (необязательно)</span><textarea data-quantity-note="${a.id}">${esc(a.quantityNote||'')}</textarea></label><p class="small">Составил — представитель лица, выполнившего работы. Проверил — представитель строительного контроля лица, осуществляющего строительство.</p>`:''}</div>`;
+ return `<div class="card"><h3>Ведомость объёмов выполненных работ</h3><label class="row"><input type="checkbox" data-quantity-toggle="${a.id}" ${on?'checked':''}>Включать ведомость в комплект этого АОСР</label><p class="small mut">Каждая строка — отдельный объём. Файл формируется из Word-шаблона и располагается согласно настройке ВОР в профиле сборки. Расчёты и вычеты автоматически не выполняются.</p>${on?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>№</th><th>Работа / участок</th><th>Место выполнения</th><th>Ед. изм.</th><th>Количество</th><th></th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td>${[['name','Например: монтаж лотка'],['place','Оси, этаж, отметка'],['unit','м, м², шт.'],['qty','0,00']].map(([key,hint])=>`<td><input aria-label="${hint}, строка ${i+1}" data-quantity-act="${a.id}" data-quantity-row="${r.id}" data-quantity-field="${key}" value="${esc(String(r[key]??''))}" placeholder="${esc(hint)}" ${key==='qty'?'inputmode="decimal"':''} style="min-width:${['name','place'].includes(key)?'180':'80'}px"></td>`).join('')}<td>${B('Удалить','quantityRemove',`data-id="${a.id}" data-row="${r.id}"`,'sm')}</td></tr>`).join('')}</tbody></table></div><div class="row mt">${B('Добавить строку','quantityAdd',`data-id="${a.id}"`,'pri')}${B('Скачать ведомость DOCX','quantityDownload',`data-id="${a.id}"`)}</div><label class="fld mt"><span>Пояснение (необязательно)</span><textarea data-quantity-note="${a.id}">${esc(a.quantityNote||'')}</textarea></label><p class="small">Составил — представитель лица, выполнившего работы. Проверил — представитель строительного контроля лица, осуществляющего строительство.</p>`:''}</div>`;
 }
 const quantityActView=V.a;
 V.a=r=>{const html=quantityActView(r),a=getEnt('act',r[1]);if(!a||a.type!=='АОСР')return html;const box=document.createElement('div');box.innerHTML=html;const tabs=box.querySelector('.tabs');if(tabs)tabs.insertAdjacentHTML('beforeend',`<a href="#/a/${a.id}/quantity" class="tab ${r[2]==='quantity'?'on':''}">Объёмы работ</a>`);if(r[2]==='quantity')box.querySelector('.page')?.insertAdjacentHTML('beforeend',quantityPanel(a));else if(!r[2]||r[2]==='main')box.querySelector('.page')?.insertAdjacentHTML('beforeend',`<div class="card"><h3>Объёмы работ</h3><p>${quantityEnabled(a)?'Ведомость включена · строк: '+quantityRows(a).length:'Ведомость выключена'}</p><a href="#/a/${a.id}/quantity">Заполнить ведомость объёмов</a></div>`);return box.innerHTML;};
