@@ -1,0 +1,39 @@
+name: Build macOS Apple Silicon
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  macos-arm64:
+    runs-on: macos-15
+    timeout-minutes: 35
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: 'utf-8'
+      QTWEBENGINE_CHROMIUM_FLAGS: '--disable-gpu'
+      QTWEBENGINE_DISABLE_SANDBOX: '1'
+      STROYID_SKIP_WORD_INTEGRATION: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: arm64
+          cache: pip
+      - name: Full setup, tests, native app, ZIP and DMG
+        run: bash setup_and_build_macos.command --no-launch
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: StroyID-macOS-arm64
+          path: |
+            release/StroyID-macOS-arm64.zip
+            release/StroyID-macOS-arm64.dmg
+            release/build-report.json
+            release/packaged-self-test.json
+            release/word-macos-check.json
+            logs/
+          retention-days: 14
