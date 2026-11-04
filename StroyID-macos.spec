@@ -7,7 +7,7 @@ a = Analysis([str(project/'app.py')], pathex=[str(project)],
                                  (str(project/'README.md'), '.')],
              hiddenimports=['PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets',
                             'PySide6.QtWebChannel', 'PySide6.QtPdf', 'PySide6.QtPrintSupport'],
-             hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[], noarchive=False)
+             hookspath=[str(project/'tools/pyinstaller-hooks')], hooksconfig={}, runtime_hooks=[], excludes=[], noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='StroyID',
           debug=False, strip=False, upx=False, console=False, target_arch='arm64',
