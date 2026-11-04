@@ -32,7 +32,7 @@ class MacWordTests(unittest.TestCase):
             self.assertEqual(args[:3],['/usr/bin/osascript','-l','JavaScript'])
             script=Path(args[3]).read_text('utf-8')
             jobs=json.loads(Path(args[4]).read_text('utf-8'))
-            self.assertEqual([j['source'] for j in jobs],[str(s) for s,_ in self.jobs])
+            self.assertEqual([j['source'] for j in jobs],[str(s.resolve()) for s,_ in self.jobs])
             for source,_ in self.jobs:self.assertNotIn(source.name,script)
             if error:
                 kwargs['stdout'].write(error.encode())
@@ -74,7 +74,7 @@ class MacWordTests(unittest.TestCase):
         with patch.object(word_templates.sys,'platform','darwin'),patch.object(mac,'word_application',return_value=Path('/Applications/Microsoft Word.app')), \
              patch.object(word_templates.subprocess,'Popen') as run:
             word_templates.open_in_word(self.jobs[0][0])
-        self.assertEqual(run.call_args.args[0],['/usr/bin/open','-a','/Applications/Microsoft Word.app',str(self.jobs[0][0])])
+        self.assertEqual(run.call_args.args[0],['/usr/bin/open','-a','/Applications/Microsoft Word.app',str(self.jobs[0][0].resolve())])
 
 
 @unittest.skipUnless(sys.platform=='darwin','JXA interpreter requires macOS')

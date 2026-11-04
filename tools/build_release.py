@@ -38,7 +38,7 @@ def command(args, timeout=900, cwd=ROOT, stage='command', logs=None):
     finally:
         if log_path.exists():
             lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()
-            print('\n'.join(lines[-120:]), flush=True)
+            print('\n'.join(lines[-400:]), flush=True)
 
 
 def close_running_release(target):
