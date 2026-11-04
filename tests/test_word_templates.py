@@ -133,7 +133,7 @@ class WordTemplateTests(unittest.TestCase):
         try:
             with patch('pdf_export.convert_docx_batch', converter):
                 prepared = prepare_export(store, plan)
-            self.assertEqual(prepared['pages'], 3)
+            self.assertEqual(prepared['pages'], 4)  # one-page act receives its required empty back
             self.assertEqual(prepared['volumes'][0]['documents'][2]['start'], 3)
             self.assertTrue(any('Монтаж' in text and '3' in text for text in seen))
             with patch('pdf_export.convert_docx_batch', side_effect=ValueError('Word не установлен')):

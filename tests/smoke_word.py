@@ -72,7 +72,7 @@ def ready(value):
       const a=s.acts[0];a.type='АОСР';a.subs=[s.subprofiles[0].id];a.materials=[];a.scan={file:'',pages:0};a.schemes=[];a.tests=[];a.testLinks=[];a.schemeLinks=[];a.photos=[];
       const p2=clone(p);p2.id='P2';p2.name='Второй объект';p2.systems=[];S.projects.push(p2);
       IX=null;ensureWorkspace();S.volCfg={};S.ui.wordObject=p.id;S.ui.wordProfile='';save();await desktopFlush(true);go('#/lib/templates');render();
-      if(document.querySelectorAll('[data-word-section]').length!==13)throw Error('Sections missing');
+      if(document.querySelectorAll('[data-word-section]').length!==14||!document.querySelector('[data-word-section="actRegister"]'))throw Error('Sections missing');
       await A.tplAdd({section:'aosr'});const basic=S.lib.templates.at(-1);
       if(!basic.fileKey||basic.type!=='АОСР')throw Error('DOCX was not stored');
       await A.wordSelect({id:basic.id,section:'aosr'});

@@ -2029,6 +2029,11 @@ const DOCUMENT_TAG_SCHEMA = {
       "type": "frame",
       "required": false,
       "empty": "blank"
+    },
+    "Реестр.КоличествоПозиций": {
+      "type": "text",
+      "source": "Число позиций сформированного реестра",
+      "required": false
     }
   },
   "collections": {

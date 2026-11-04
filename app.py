@@ -276,9 +276,9 @@ class Bridge(QObject):
             elif operation == 'referenceTemplate':
                 from word_templates import inspect_docx
                 section = params.get('section')
-                if section not in ('title', 'reg', 'quantity'):
+                if section not in ('title', 'reg', 'quantity', 'actRegister'):
                     raise ValueError('Неизвестный встроенный шаблон')
-                path = Path(__file__).parent / 'ui' / 'reference-templates' / {'title': 'title.docx', 'reg': 'registry.docx', 'quantity': 'quantities.docx'}[section]
+                path = Path(__file__).parent / 'ui' / 'reference-templates' / {'title': 'title.docx', 'reg': 'registry.docx', 'quantity': 'quantities.docx','actRegister':'act-register.docx'}[section]
                 value = {**self.store.import_file(path), **inspect_docx(path.read_bytes())}
             elif operation == 'pickFrameTemplate':
                 from drawing_frame import template_svg
@@ -292,6 +292,49 @@ class Bridge(QObject):
                     value = self.store.import_file(name)
             elif operation in ('trashMove','trashRestore','trashPurge','recoverMissing'):
                 value = {'trashMove':self.store.move_trash,'trashRestore':self.store.restore_trash,'trashPurge':self.store.purge_trash,'recoverMissing':lambda p:self.store.recover_missing(p['key'])}[operation](params)
+            elif operation == 'saveMaterialsTemplate':
+                source=Path(__file__).parent/'ui/reference-templates/materials-import.xlsx'
+                target,_=QFileDialog.getSaveFileName(self.window,'Сохранить шаблон импорта материалов','Материалы_шаблон.xlsx','Excel (*.xlsx)')
+                value=None
+                if target:
+                    if not target.lower().endswith('.xlsx'):target+='.xlsx'
+                    if Path(target).resolve().is_relative_to(self.store.root):raise ValueError('Сохраните шаблон вне рабочей папки базы')
+                    shutil.copyfile(source,target);value={'path':target}
+            elif operation == 'previewMaterialsImport':
+                from material_import import preview_import
+                source,_=QFileDialog.getOpenFileName(self.window,'Выберите Excel с материалами','','Excel (*.xlsx)')
+                folder=QFileDialog.getExistingDirectory(self.window,'Выберите папку с PDF документов качества') if source else ''
+                value=None
+                if folder:
+                    loaded=self.store.load()
+                    if not loaded['state']:raise ValueError('Сначала создайте базу')
+                    preview=preview_import(source,folder,loaded['state'])
+                    from copy import deepcopy
+                    preview['heads']=deepcopy(self.store.heads)
+                    import uuid
+                    token=uuid.uuid4().hex;self.material_preview=(token,preview)
+                    value={'token':token,'errors':preview['errors'],'items':[
+                        {**{k:v for k,v in item.items() if k!='docs'},'docs':[
+                            {k:v for k,v in d.items() if k not in ('path','hash')} for d in item['docs']]}
+                        for item in preview['items']]}
+            elif operation == 'commitMaterialsImport':
+                from material_import import commit_import
+                token,preview=getattr(self,'material_preview',(None,None))
+                if token!=params.get('token') or preview is None:raise ValueError('Повторите проверку Excel')
+                value=commit_import(self.store,preview,params.get('choices',{}))
+                self.material_preview=(None,None)
+            elif operation == 'exportPrintFolder':
+                from export_jobs import prepare_many
+                from print_export import write_print_folder
+                if self.store.conflicts or self.store.invalid or self.store.missing:
+                    raise ValueError('Перед экспортом устраните ошибки базы')
+                prepared=prepare_many(self.store,params['plans'])
+                parent=QFileDialog.getExistingDirectory(self.window,'Выберите папку для сохранения печатного комплекта')
+                value=None
+                if parent:
+                    from datetime import datetime
+                    name='Печать_'+datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                    value=write_print_folder(self.store,prepared,Path(parent)/name,params.get('options'))
             elif operation in ('exportPortable','exportPdfZip','exportRegistry'):
                 if self.store.conflicts or self.store.invalid or self.store.missing:
                     raise ValueError('Перед экспортом устраните конфликты и восстановите отсутствующие или повреждённые карточки.')

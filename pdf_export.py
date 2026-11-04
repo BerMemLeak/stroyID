@@ -87,9 +87,9 @@ class ExportSourceError(ValueError):
 
 def word_template_path(store, item):
     if item.get('builtinTemplate'):
-        if item['builtinTemplate'] != 'quantity':
+        if item['builtinTemplate'] not in ('quantity','act-register'):
             raise ValueError('Неизвестный встроенный шаблон')
-        return Path(__file__).parent / 'ui/reference-templates/quantities.docx'
+        return Path(__file__).parent / ('ui/reference-templates/quantities.docx' if item['builtinTemplate']=='quantity' else 'ui/reference-templates/act-register.docx')
     return store.asset_path(item.get('templateKey', ''))[0]
 
 
@@ -109,6 +109,8 @@ def prepare_export(store, plan):
     """Resolve every source before offering Save; missing documents never get skipped."""
     if not isinstance(plan, dict) or not plan.get('volumes'):
         raise ValueError('Не выбран комплект ИД')
+    from act_registers import expand_registers, enforce_act_pages
+    plan = expand_registers(plan)
     volumes, errors = [], []
     with tempfile.TemporaryDirectory(prefix='stroiid-pdf-') as work:
         work = Path(work)
@@ -225,6 +227,7 @@ def prepare_export(store, plan):
         for doc, target in updated:
             reader = read_pdf(target.read_bytes(), doc.get('name', 'Акт'))
             doc.update(reader=reader, count=len(reader.pages), selection=list(range(len(reader.pages))))
+        enforce_act_pages(volumes)
         # Actual PDF page counts drive the registry, including the registry's own length.
         for attempt in range(12):
             cursor, changed = 1, False

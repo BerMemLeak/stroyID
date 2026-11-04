@@ -5,6 +5,7 @@
 - PyInstaller 6.22.3 (инструмент сборки): https://pyinstaller.org/en/stable/license.html
 - Python: https://docs.python.org/3/license.html
 - pypdf 6.14.0 (объединение PDF): BSD-3-Clause, https://github.com/py-pdf/pypdf/blob/main/LICENSE
+- openpyxl 3.1.5 (чтение Excel): MIT, https://openpyxl.readthedocs.io/en/stable/
 
 HTML-интерфейс основан на предоставленном пользователем прототипе СтройИД и
 его переработанной сборке. Перед распространением приложения сохраните необходимые
