@@ -57,7 +57,7 @@ def validate_bundle(bundle):
     if not helpers:
         raise ValueError('В сборке отсутствует QtWebEngineProcess')
     for helper in helpers:
-        subprocess.run(['/usr/bin/lipo', '-verify_arch', 'arm64', str(helper)], check=True, timeout=20)
+        subprocess.run(['/usr/bin/lipo', str(helper), '-verify_arch', 'arm64'], check=True, timeout=20)
     subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(bundle)], check=True, timeout=120)
     return {'architecture': architecture, 'bundle_id': info['CFBundleIdentifier'],
             'signature': 'ad-hoc', 'notarized': False, 'webengine_helpers': len(helpers)}
