@@ -326,6 +326,10 @@ def word_executable():
 
 
 def open_in_word(path):
+    if sys.platform == 'darwin':
+        from macos_word import word_application
+        subprocess.Popen(['/usr/bin/open', '-a', str(word_application()), str(Path(path).resolve())], close_fds=True)
+        return True
     subprocess.Popen([word_executable(), str(Path(path).resolve())], close_fds=True)
     return True
 
@@ -334,8 +338,11 @@ def convert_docx_batch(jobs):
     """Run only the installed Word; no lossy HTML substitution for DOCX."""
     if not jobs:
         return
+    if sys.platform == 'darwin':
+        from macos_word import convert_docx_batch as convert_macos
+        return convert_macos(jobs)
     if sys.platform != 'win32':
-        raise ValueError('Для преобразования Word-шаблонов в PDF нужен Microsoft Word на Windows')
+        raise ValueError('Для преобразования Word-шаблонов в PDF нужен Microsoft Word на Windows или macOS')
     with tempfile.TemporaryDirectory(prefix='stroiid-word-') as folder:
         folder = Path(folder)
         script, manifest = folder / 'export.ps1', folder / 'jobs.json'

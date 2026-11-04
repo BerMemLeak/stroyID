@@ -77,3 +77,8 @@ htmlcov/
 # Python packaging intermediates
 .eggs/
 *.egg-info/
+
+# Native macOS environment and bundles
+.venv-macos/
+dist-macos/
+*.dmg

@@ -38,7 +38,7 @@ def command(args, timeout=900, cwd=ROOT, stage='command', logs=None):
     finally:
         if log_path.exists():
             lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()
-            print('\n'.join(lines[-120:]), flush=True)
+            print('\n'.join(lines[-400:]), flush=True)
 
 
 def close_running_release(target):
@@ -84,6 +84,10 @@ def build():
     status = output / 'build-report.json'
     try:
         report['platform'] = platform.platform()
+        is_mac = sys.platform == 'darwin'
+        if is_mac:
+            from macos_release import require_native_mac
+            require_native_mac()
         report['stage'] = 'unit-tests'
         command([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-v'], 120, stage=report['stage'])
         report['stage'] = 'document-tags'
@@ -116,31 +120,58 @@ def build():
         command([sys.executable,'tests/smoke_history.py'],150,stage=report['stage'])
         report['stage'] = 'qt-frame-reference'
         command([sys.executable,'tests/smoke_frames.py'],120,stage=report['stage'])
+        report['stage'] = 'qt-navigation-and-preview'
+        command([sys.executable,'tests/smoke_navigation.py'],120,stage=report['stage'])
+        if is_mac:
+            report['stage'] = 'macos-word-integration'
+            command([sys.executable, 'tests/smoke_word_macos.py', str(output/'word-macos-check.json')],
+                    240, stage=report['stage'])
+            report['word_integration'] = json.loads((output/'word-macos-check.json').read_text('utf-8'))
+            report['stage'] = 'macos-icon'
+            command([sys.executable, 'tools/macos_release.py', 'icon'], 90, stage=report['stage'])
         report['stage'] = 'pyinstaller'
         command([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean',
-                 '--distpath', 'dist-onefile', 'StroyID.spec'], stage=report['stage'])
+                 '--distpath', 'dist-macos' if is_mac else 'dist-onefile',
+                 'StroyID-macos.spec' if is_mac else 'StroyID.spec'], stage=report['stage'])
         filename = 'StroyID.exe' if sys.platform == 'win32' else 'StroyID'
-        executable = ROOT / 'dist-onefile' / filename
+        bundle = ROOT/'dist-macos/StroyID.app' if is_mac else None
+        executable = bundle/'Contents/MacOS/StroyID' if is_mac else ROOT/'dist-onefile'/filename
+        if is_mac:
+            from macos_release import validate_bundle
+            report['stage'] = 'macos-bundle-validation'
+            report['bundle'] = validate_bundle(bundle)
         test_report = output / 'packaged-self-test.json'
         test_report.unlink(missing_ok=True)
         # Prove that the executable runs after copying it alone into an otherwise empty folder.
         with tempfile.TemporaryDirectory(prefix='stroiid-onefile-proof-') as isolated:
             isolated = Path(isolated)
-            copied = isolated / filename
-            shutil.copy2(executable, copied)
+            if is_mac:
+                copied_bundle = isolated/'StroyID.app'
+                shutil.copytree(bundle, copied_bundle, symlinks=True)
+                copied = copied_bundle/'Contents/MacOS/StroyID'
+            else:
+                copied = isolated / filename
+                shutil.copy2(executable, copied)
             report['stage'] = 'onefile-self-test'
             command([str(copied), '--self-test', str(test_report)], 180, cwd=isolated, stage=report['stage'])
         test = json.loads(test_report.read_text(encoding='utf-8'))
         if not test.get('passed') or not test.get('frozen'):
             raise ValueError('Packaged application self-test failed')
         report['packaged_check'] = test
-        report['stage'] = 'publish-file'
-        target = publish_executable(executable, output / filename)
+        if is_mac:
+            from macos_release import package
+            report['stage'] = 'macos-zip-and-dmg'
+            artifacts = package(bundle, output)
+            target = artifacts[0]
+            report['artifacts'] = [p.name for p in artifacts]
+        else:
+            report['stage'] = 'publish-file'
+            target = publish_executable(executable, output / filename)
         digest = hashlib.sha256()
         with target.open('rb') as stream:
             for data in iter(lambda: stream.read(1024 * 1024), b''):
                 digest.update(data)
-        report.update(passed=True, stage='complete', returncode=0, mode='onefile', artifact=target.name,
+        report.update(passed=True, stage='complete', returncode=0, mode='macos-app' if is_mac else 'onefile', artifact=target.name,
                       sha256=digest.hexdigest(), size=target.stat().st_size)
         print(f'\nREADY: {target}', flush=True)
         return 0

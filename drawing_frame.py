@@ -53,8 +53,8 @@ def frame_sheet_values(config, sheet, values):
     if not isinstance(place,str):
         raise ValueError('Место выполнения листа должно быть текстом')
     base=str(values.get('Схема.Номер','') or '').strip()
-    number=f'{base}.{sheet}' if base else str(sheet)
-    work=str(values.get('АОСР.Работы','') or '').strip()
+    number=base if base and config.get('preserveDrawingNumber') else f'{base}.{sheet}' if base else str(sheet)
+    work=str(config.get('captionWork', values.get('АОСР.Работы','')) or '').strip()
     description=' '.join(part for part in (work,place.strip()) if part)
     values['Лист.НомерСхемы']=number
     values['Лист.МестоРабот']=place.strip()
