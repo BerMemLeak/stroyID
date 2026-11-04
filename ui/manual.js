@@ -27,7 +27,6 @@ function materialEditor(pid){if(!guard())return;const project=proj(pid),global=!
 A.newMat=d=>materialEditor(d.p);const manualLibNew=A.libNew;A.libNew=d=>d.k==='base'?materialEditor():manualLibNew(d);
 V.m=r=>{const {p,o:m}=ctx('mat',r[1]);if(!m)return V.home();const source=baseOf(m)||m,global=!!m.baseId,archived=global&&!S.lib.base.some(b=>b.id===m.baseId),ent=global?'base':'mat',id=source.id,ed=!archived;const used=p.systems.flatMap(s=>s.acts.filter(a=>a.materials.includes(m.id)).map(a=>({a,s})));return `<div class="page">${hdr(esc(mName(m)),global?'Общий паспорт · используется по ссылке':'Объектный материал · '+esc(p.name),B('Убрать из объекта','del',`data-ent="mat" data-id="${m.id}"`,'dng'),`<a href="#/p/${p.id}/mats">${esc(p.name)} / Материалы объекта</a>`)}${global?'<p class="small">Изменения общего паспорта применяются во всех объектах. Файлы хранятся только в общей базе.</p>':''}${archived?'<div class="card">Паспорт в корзине. Он остаётся доступным для сборки ИД. Восстановите его для редактирования.</div>':''}<div class="card"><h3>Сведения</h3><div class="g2">${[['name','Наименование'],['category','Категория'],['brand','Марка'],['maker','Производитель'],['note','Примечание']].map(([key,label])=>ed?F(label,ent,id,key,source[key]||'',{rr:key==='name'?1:0}):'<p>'+label+': '+esc(source[key]||'—')+'</p>').join('')}</div></div><div class="card"><h3>Документы качества</h3>${docsTable(source,ed,ent,id)}${mDocs(m).filter(d=>!source.docs.some(x=>x.id===d.id)&&!source.docIds?.includes(d.id)).map(d=>`<p>${esc(d.type+' № '+d.num)} · документ в корзине ${d.fileKey?B('Открыть','openBlob',`data-key="${esc(d.fileKey)}"`,'sm'):''}</p>`).join('')}${archived?mDocs(m).filter(d=>d.fileKey).map(d=>B('Открыть '+esc(d.type),'openBlob',`data-key="${esc(d.fileKey)}"`)).join(''):''}</div><div class="card"><h3>Применение в актах</h3>${used.map(({a,s})=>`<a href="#/a/${a.id}">${esc(s.code+' · '+a.num)}</a>`).join('<br>')||'Не используется'}</div>${!global?`<div class="card">${B('Перенести в общую базу','matToBase',`data-id="${m.id}"`)}</div>`:''}</div>`;};
 A.matUnlink=()=>toast('Общие паспорта используются по ссылке.');
-A.matToBase=d=>{if(!guard())return;const m=getEnt('mat',d.id);if(!m||m.baseId)return;const b={...structuredClone(m),id:'b'+uid(),scope:'common',baseId:''};S.lib.base.push(b);m.baseId=b.id;m.scope='common';m.docs=[];commit('Материал перенесён в общую базу');};
 const manualMats=matsTab;matsTab=p=>{const filter=S.ui.materialSource?.[p.id]||'all',copy={...p,materials:p.materials.filter(m=>filter==='all'||(filter==='common'?!!m.baseId:!m.baseId))};return `<label class="fld mb"><span>Принадлежность</span><select data-ent="ui" data-id="" data-f="materialSource.${p.id}" data-rr="1"><option value="all" ${filter==='all'?'selected':''}>Все материалы объекта</option><option value="object" ${filter==='object'?'selected':''}>Объектные</option><option value="common" ${filter==='common'?'selected':''}>Общие по ссылке</option></select></label>`+manualMats(copy).replaceAll('База</span>','Общий</span>').replaceAll('Свой</span>','Объектный</span>');};
 function passportReview(){if(!S.meta.passportReviewPending)return '';return `<div class="card"><h3>Принадлежность прежних паспортов</h3><p>Выберите, какие паспорта оставить общими, а какие закрепить за объектом. Файлы будут перенесены после сохранения изменений.</p>${S.lib.base.map(b=>`<div class="row mb"><span class="grow">${esc(b.name)}</span><select data-passport-review="${b.id}"><option value="">Оставить общим</option>${S.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>`).join('')}${B('Применить распределение','passportReview','', 'pri')}</div>`;}
 const manualBaseView=libBase;libBase=sel=>manualBaseView(sel)+passportReview();
@@ -60,3 +59,58 @@ A.objectDocAdd=d=>{
 A.commonDraftFile=async()=>{const draft=commonDocumentDraft;if(!draft)return;try{const asset=await desktopTrack(nativeCall('pickPdf'));if(!asset||draft!==commonDocumentDraft||!$('#common-doc-name'))return;Object.assign(draft,{file:asset.name,fileKey:asset.id,pages:asset.pages});$('#common-doc-file').textContent=asset.name;if(!$('#common-doc-name').value)$('#common-doc-name').value=asset.name.replace(/\.pdf$/i,'');}catch(e){toast(e.message);}};
 
 A.backupNow=async()=>{try{const result=await backup('Вручную');if(!result)return;render();toast('Резервная копия создана.');}catch(e){toast(e.message);}};
+
+// Keep object IDs stable: acts and incoming inspections keep the same material links.
+const objectMaterialSelections=new Map();
+function shareObjectMaterials(p,ids){
+ const selected=[...new Set(ids)].map(id=>p.materials.find(m=>m.id===id));
+ if(selected.some(m=>!m))throw Error('Список материалов изменился. Повторите выбор.');
+ const own=selected.filter(m=>!m.baseId);
+ if(own.some(m=>!String(m.name||'').trim()))throw Error('Укажите наименования всех выбранных материалов.');
+ const prepared=own.map(m=>({m,b:{...structuredClone(m),id:'b'+uid(),scope:'common',baseId:''}}));
+ for(const {m,b} of prepared){S.lib.base.push(b);Object.assign(m,{baseId:b.id,scope:'common',docs:[],docIds:[]});}
+ return prepared.length;
+}
+A.matToBase=d=>{const {p}=ctx('mat',d.id);if(!p||!guard('obj:'+p.id)||!guard('lib'))return;try{const n=shareObjectMaterials(p,[d.id]);if(n)commit('Материал перенесён в общую базу');}catch(e){toast(e.message);}};
+const sharingMatsTab=matsTab;
+matsTab=p=>{
+ const box=document.createElement('div');box.innerHTML=sharingMatsTab(p);
+ const selected=objectMaterialSelections.get(p.id)||new Set();
+ for(const id of selected)if(!p.materials.some(m=>m.id===id&&!m.baseId))selected.delete(id);
+ objectMaterialSelections.set(p.id,selected);
+ const table=box.querySelector('table');
+ if(table){
+  const head=document.createElement('th');head.innerHTML=`<input type="checkbox" data-material-select-all="${esc(p.id)}" aria-label="Выбрать все видимые объектные материалы">`;table.querySelector('thead tr').prepend(head);
+  for(const row of table.querySelectorAll('tbody tr')){
+   const m=p.materials.find(m=>row.dataset.h==='#/m/'+m.id);if(!m)continue;
+   const cell=document.createElement('td');cell.dataset.materialSelectionCell='';cell.innerHTML=`<input type="checkbox" data-material-select="${esc(m.id)}" data-p="${esc(p.id)}" ${m.baseId?'disabled title="Уже общий материал"':selected.has(m.id)?'checked':''} aria-label="${esc('Выбрать '+mName(m))}">`;
+   row.prepend(cell);
+  }
+ }
+ box.insertAdjacentHTML('afterbegin',`<div class="row mb">${B('Перевести выбранные в общие','materialsShare',`data-p="${p.id}"`, 'pri')}<span data-material-selected-count="${esc(p.id)}">Выбрано: ${selected.size}</span></div>`);
+ const button=box.querySelector('[data-a="materialsShare"]');if(button)button.disabled=!selected.size;
+ queueMicrotask(()=>updateMaterialSelection(p.id));
+ return box.innerHTML;
+};
+function updateMaterialSelection(p){
+ const selected=objectMaterialSelections.get(p)||new Set(),inputs=[...document.querySelectorAll('[data-material-select]')].filter(el=>el.dataset.p===p&&!el.disabled);
+ for(const el of inputs)el.checked=selected.has(el.dataset.materialSelect);
+ const all=[...document.querySelectorAll('[data-material-select-all]')].find(el=>el.dataset.materialSelectAll===p);
+ if(all){const n=inputs.filter(el=>el.checked).length;all.disabled=!inputs.length;all.checked=!!inputs.length&&n===inputs.length;all.indeterminate=n>0&&n<inputs.length;}
+ const count=[...document.querySelectorAll('[data-material-selected-count]')].find(el=>el.dataset.materialSelectedCount===p);if(count)count.textContent='Выбрано: '+selected.size;
+ const button=[...document.querySelectorAll('[data-a="materialsShare"]')].find(el=>el.dataset.p===p);if(button)button.disabled=!selected.size;
+}
+document.addEventListener('click',event=>{if(event.target.closest('[data-material-selection-cell],[data-material-select-all]'))event.stopPropagation();},true);
+document.addEventListener('change',event=>{
+ const el=event.target,p=el.dataset.materialSelectAll||el.dataset.p;
+ if(!el.dataset.materialSelect&&!el.dataset.materialSelectAll)return;
+ const selected=objectMaterialSelections.get(p)||new Set();
+ if(el.dataset.materialSelectAll)for(const input of document.querySelectorAll('[data-material-select]')){if(input.dataset.p===p&&!input.disabled){if(el.checked)selected.add(input.dataset.materialSelect);else selected.delete(input.dataset.materialSelect);}}
+ else if(!el.disabled){if(el.checked)selected.add(el.dataset.materialSelect);else selected.delete(el.dataset.materialSelect);}
+ objectMaterialSelections.set(p,selected);updateMaterialSelection(p);
+});
+A.materialsShare=d=>{const p=proj(d.p);if(!p||!guard('obj:'+p.id)||!guard('lib'))return;try{
+ const count=shareObjectMaterials(p,[...(objectMaterialSelections.get(p.id)||[])]);
+ if(!count){toast('Выберите объектные материалы');return;}
+ objectMaterialSelections.delete(p.id);commit('Переведено материалов в общие: '+count);toast('Переведено в общие: '+count);
+ }catch(e){toast(e.message);}};

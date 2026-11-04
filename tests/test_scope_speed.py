@@ -16,6 +16,26 @@ class ScopeAndSpeed(unittest.TestCase):
   s=self.fixture();self.assertEqual(s['lib']['base'],[]);m=s['projects'][0]['materials'][0];self.assertEqual(m['scope'],'object');self.assertTrue(m['docs'][0]['fileKey'].startswith('УТК Боец/'));m['maker']='Новый завод';r=self.store.save(s,0)['state'];self.assertEqual(r['projects'][0]['materials'][0]['maker'],'Новый завод');self.assertEqual(r['lib']['base'],[])
  def test_promotion_moves_one_working_file_to_global_and_preserves_reference(self):
   s=self.fixture();m=s['projects'][0]['materials'][0];old=m['docs'][0]['fileKey'];b=copy.deepcopy(m);b['id']='global';b['scope']='common';s['lib']['base'].append(b);m['baseId']='global';m['docs']=[];r=self.store.save(s,0)['state'];new=r['lib']['base'][0]['docs'][0]['fileKey'];self.assertTrue(new.startswith('Справочники/'));self.assertFalse(self.store.path(old).exists());self.assertEqual(r['projects'][0]['materials'][0]['docs'],[]);self.assertEqual(r['projects'][0]['materials'][0]['baseId'],'global')
+ def test_project_rename_removes_deep_empty_scaffolding_but_keeps_files_and_history(self):
+  s=self.fixture();pid=s['projects'][0]['id'];old=self.store.path(self.store.paths['projects:'+pid]).parent
+  (old/'Старый раздел'/'Пустой подраздел'/'Схемы').mkdir(parents=True)
+  s['projects'][0]['name']='Новое название';result=self.store.save(s,self.store.revision)
+  self.assertFalse(result['warnings']);self.assertFalse(result['conflicts']);self.assertFalse(old.exists())
+  m=result['state']['projects'][0]['materials'][0]
+  self.assertTrue(self.store.asset_path(m['docs'][0]['fileKey'])[0].is_file())
+  self.assertTrue(self.store.card_history('materials:own')['versions'])
+  current=self.store.path(self.store.paths['projects:'+pid]).parent
+  (current/'Ручные файлы').mkdir();(current/'Ручные файлы'/'note.txt').write_text('keep')
+  result['state']['projects'][0]['name']='Ещё одно название';self.store.save(result['state'],self.store.revision)
+  self.assertEqual((current/'Ручные файлы'/'note.txt').read_text(),'keep')
+ def test_reopen_cleans_previously_left_empty_project_tree_only(self):
+  s=self.fixture();pid=s['projects'][0]['id'];old=self.store.path(self.store.paths['projects:'+pid]).parent
+  s['projects'][0]['name']='Переименованный объект';self.store.save(s,self.store.revision)
+  (old/'Пустая ветка'/'Вложенная папка').mkdir(parents=True)
+  unrelated=self.store.root/'Моя пустая папка';unrelated.mkdir()
+  again=Store(self.store.root);loaded=again.load()
+  self.assertFalse(old.exists());self.assertTrue(unrelated.exists());self.assertFalse(loaded['warnings'])
+  again.close()
  def test_unchanged_refresh_does_not_hash_documents_or_parse_json_again(self):
   self.fixture();self.store.load();before=self.store.metrics.copy();cpu=time.process_time()
   for _ in range(10):self.store.load()

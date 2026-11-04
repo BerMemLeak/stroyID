@@ -153,6 +153,7 @@ class Store(CardHistory,FastFiles,CoreStore):
  def load(self):
   self.metrics['loads']+=1
   result=super().load()
+  self._prune_retired_folders()
   if result['state'] and result['state']['meta'].get('folderModel',0)<9 and not self._saving and not result['conflicts'] and not self.invalid and not self.missing:
    self._checkpoint('Перед переходом на структуру 0.9')
    return self.save(migrate(result['state']),self.revision)
@@ -289,6 +290,37 @@ class Store(CardHistory,FastFiles,CoreStore):
       except OSError:pass
     try:folder.rmdir()
     except OSError:pass
+  self._prune_retired_folders(force=True)
+ def _prune_retired_folders(self,force=False):
+  # Only old card locations recorded in history are candidates. Never sweep the DB.
+  marker=(len(self.events),tuple(sorted(self.paths.items())))
+  if not force and marker==getattr(self,'_retired_folder_marker',None):return
+  protected={self.root,self.service}
+  for key,record in self.latest.items():
+   if not record:continue
+   parent=self.path(self.paths[key]).parent
+   while parent.is_relative_to(self.root):
+    protected.add(parent)
+    if parent==self.root:break
+    parent=parent.parent
+  candidates=set()
+  for paths in getattr(self,'_history_paths',{}).values():
+   for rel in paths:
+    parent=self.path(rel).parent
+    while parent not in protected and parent.is_relative_to(self.root) and not parent.is_relative_to(self.service):
+     candidates.add(parent);parent=parent.parent
+  roots=[]
+  for folder in sorted(candidates,key=lambda p:len(p.parts)):
+   if not any(folder.is_relative_to(root) for root in roots):roots.append(folder)
+  def prune(folder):
+   if folder in protected or folder.is_symlink() or not folder.is_dir():return
+   try:
+    for child in folder.iterdir():
+     if child.is_dir() and not child.is_symlink():prune(child)
+    folder.rmdir() # Succeeds only if completely empty; unknown files are preserved.
+   except OSError:pass
+  for folder in roots:prune(folder)
+  self._retired_folder_marker=marker
  def recover_missing(self,key):
   self._scan();path=self.paths.get(key)
   if not path:raise ValueError('Карточка не найдена')

@@ -13,6 +13,25 @@ APP=QApplication.instance() or QApplication([])
 # macOS fallback fonts can share the Cyrillic к and Latin kra glyph.
 # Compare the displayed Russian text after normalizing this PDF cmap alias.
 class DrawingFrameTests(unittest.TestCase):
+ def test_saved_centre_caption_moves_to_top_without_changing_other_template_parts(self):
+  import re,xml.etree.ElementTree as ET
+  from drawing_frame import frame_page
+  custom='''<svg xmlns="http://www.w3.org/2000/svg" width="{{Геометрия.Ширина}}mm" height="{{Геометрия.Высота}}mm" viewBox="0 0 {{Геометрия.Ширина}} {{Геометрия.Высота}}">
+  <path id="user-artwork" d="M30 60L150 60"/>
+  <text id="drawing-sheet-caption" x="{{Геометрия.X_Центр_Листа}}" y="{{Геометрия.Y_Центр_Листа}}" font-size="5">{{Лист.Надпись}}</text></svg>'''
+  for width in (210,420):
+   writer=PdfWriter();page=writer.add_blank_page(width*MM,297*MM)
+   with patch('drawing_frame.template_svg',wraps=template_svg) as render:
+    frame_page(page,{'captionEnabled':True,'preserveDrawingNumber':True,'values':{'Схема.Номер':'ИС-1','АОСР.Работы':'Монтаж трубопровода на первом этаже в осях 1–20'}},template=custom)
+   source,values=render.call_args.args[:2]
+   self.assertEqual(source.count('id="drawing-sheet-caption"'),1);self.assertIn('id="user-artwork"',source)
+   svg=ET.fromstring(template_svg(source,values))
+   nodes=[n for n in svg.iter() if n.get('id')=='drawing-sheet-caption']
+   self.assertTrue(nodes)
+   for node in nodes:
+    x,y=map(float,re.search(r'translate\(([^ ]+) ([^)]+)\)',node.get('transform')).groups())
+    self.assertLess(y,30);self.assertLess(x+values['Геометрия.Ширина_Надписи_Листа']/2,width-58)
+   self.assertEqual(float(page.mediabox.width),width*MM)
  def test_ordered_signer_slots_and_empty_unused_cells(self):
   rows=[{'role':'Разработал','name':'Морозкин Е. Е.'}, {'role':'Проверил','name':'Щербак О. О.'}]
   values=frame_signer_values({'signerRows':rows},{'Схема.Дата':'20.05.2025'})

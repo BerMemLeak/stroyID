@@ -42,8 +42,8 @@ def write_print_folder(store, prepared_list, target, options=None):
         raise ValueError('Сохраните печатную папку вне базы СтройИД')
     if target.exists():
         raise ValueError('Выберите новое имя папки: существующая папка не перезаписывается')
-    modes = options.get('types', {}); overrides = options.get('documents', {})
-    if any(v not in ('simplex','duplex') for v in [*modes.values(),*overrides.values()]):
+    modes = options.get('types', {})
+    if any(v not in ('simplex','duplex') for v in modes.values()):
         raise ValueError('Неверный режим печати')
     if options.get('binding', 'long') not in ('long','short'):
         raise ValueError('Неверная сторона переворота')
@@ -57,9 +57,8 @@ def write_print_folder(store, prepared_list, target, options=None):
                 for vi, volume in enumerate(prepared['volumes']):
                     for di, doc in enumerate(volume['documents']):
                         documents += 1
-                        key = f'{pi}:{vi}:{doc["id"]}'
-                        mode = overrides.get(key, modes.get(doc.get('type',''),
-                            'duplex' if doc.get('type')=='АОСР' else 'simplex'))
+                        mode = modes.get(doc.get('type',''),
+                            'duplex' if doc.get('type')=='АОСР' else 'simplex')
                         suffix = '_двусторонняя_' + ('длинный_край' if options.get('binding','long')=='long' else 'короткий_край') if mode=='duplex' else '_односторонняя'
                         name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', doc.get('name') or doc.get('type') or 'Документ').strip(' .')[:100]
                         one = PdfWriter()

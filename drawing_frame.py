@@ -32,11 +32,22 @@ def frame_signer_values(config, values):
 
 
 SHEET_CAPTION_SVG = (
-    '<text id="drawing-sheet-caption" x="{{Геометрия.X_Центр_Листа}}" y="{{Геометрия.Y_Центр_Листа}}" '
+    '<text id="drawing-sheet-caption" x="{{Геометрия.X_Надписи_Листа}}" y="{{Геометрия.Y_Надписи_Листа}}" '
     'font-size="5" text-anchor="middle" fill="black" stroke="none" '
     'data-text-scale="0.75" data-fit-width="{{Геометрия.Ширина_Надписи_Листа}}" '
-    'data-fit-height="40">{{Лист.Надпись}}</text>'
+    'data-fit-height="20" data-line-align="top">{{Лист.Надпись}}</text>'
 )
+
+
+def sheet_caption_template(source):
+    """Move the application caption in saved frames too; leave stamps and artwork alone."""
+    def remove_caption(match):
+        node=match.group(0)
+        if re.search(r'\bid=[\"\']drawing-sheet-caption[\"\']',node) or re.search(r'\{\{\s*Лист\.Надпись\s*\}\}',node):
+            return ''
+        return node
+    source=re.sub(r'<text\b[^>]*>[\s\S]*?</text\s*>',remove_caption,source,flags=re.I)
+    return re.sub(r'</svg\s*>',lambda m:SHEET_CAPTION_SVG+m.group(0),source,count=1,flags=re.I)
 
 
 def frame_sheet_values(config, sheet, values):
@@ -104,6 +115,7 @@ def template_svg(template, values, font_family=None):
         limit = node.attrib.pop('data-fit-width', None)
         height = node.attrib.pop('data-fit-height', None)
         stretch = float(node.attrib.pop('data-text-scale', '1'))
+        line_align = node.attrib.pop('data-line-align', 'center')
         if not node.text:
             continue
         text = node.text.strip()
@@ -135,7 +147,7 @@ def template_svg(template, values, font_family=None):
         parent=parents[node];position=list(parent).index(node)
         x=float(node.get('x','0'));y=float(node.get('y','0'))
         original_transform=node.get('transform','')
-        first=y-(len(lines)-1)*size*1.2/2
+        first=y if line_align=='top' else y-(len(lines)-1)*size*1.2/2
         parent.remove(node)
         for i,line in enumerate(lines):
             attrs={k:v for k,v in node.attrib.items() if k not in ('x','y','font-size','transform')}
@@ -162,7 +174,9 @@ def frame_page(page, config, *, sheet=1, total=1, template=None):
     values={**config.get('values',{}),'Геометрия.Ширина':wm,'Геометрия.Высота':hm,'Геометрия.X_Надпись':wm-190,'Геометрия.Y_Надпись':hm-60,
         'Геометрия.X_Приложение':wm-58,'Геометрия.Y_Инвентарных_Граф':hm-90,'Геометрия.X_Формат':wm-5,'Геометрия.Y_Формат':hm-1.5,'Геометрия.Ширина_Рамки':wm-25,'Геометрия.Высота_Рамки':hm-10,'Лист.Номер':str(sheet),
         'Лист.Всего':str(total), 'Лист.Формат':paper_format(wm,hm),
-        'Геометрия.X_Центр_Листа':wm/2, 'Геометрия.Y_Центр_Листа':hm/2, 'Геометрия.Ширина_Надписи_Листа':min(wm-40,240)}
+        'Геометрия.X_Центр_Листа':wm/2, 'Геометрия.Y_Центр_Листа':hm/2,
+        'Геометрия.X_Надписи_Листа':(25+wm-63)/2, 'Геометрия.Y_Надписи_Листа':10,
+        'Геометрия.Ширина_Надписи_Листа':min(wm-88,280)}
     for key in ('Схема.Шифр','Объект.Наименование','Схема.Здание','Схема.Наименование','Комплект.Компания.Наименование','Рамка.Разработал','Рамка.Проверил','Рамка.Нормоконтроль','Схема.Дата','Схема.Стадия','АОСР.Номер','Схема.Работы','Раздел.Наименование','Выполнение.Наименование','АОСР.Дата','Приложение.Номер'):
         values.setdefault(key,'')
     values.setdefault('Приложение.Основание', 'К акту №' if values['АОСР.Номер'] else 'К разделу')
@@ -182,8 +196,8 @@ def frame_page(page, config, *, sheet=1, total=1, template=None):
             if any('{{Рамка.Строка'+str(i)+'.'+key+'}}' not in source for key in ('Роль','ФамилияИнициалы')):
                 raise ValueError('HTML-шаблон рамки использует старые теги строк. '
                                  'Загрузите шаблон v2 или используйте встроенную рамку.')
-    if values['Лист.Надпись'] and '{{Лист.Надпись}}' not in source:
-        source=re.sub(r'</svg\s*>',lambda m:SHEET_CAPTION_SVG+m.group(0),source,count=1,flags=re.I)
+    if values['Лист.Надпись']:
+        source=sheet_caption_template(source)
     svg=template_svg(source,values,config.get('_resolvedFont') or resolve_frame_font(config))
     renderer=QSvgRenderer(QByteArray(svg))
     if not renderer.isValid(): raise ValueError('Некорректный SVG рамки')
