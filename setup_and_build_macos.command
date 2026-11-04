@@ -52,10 +52,7 @@ if [ -z "$BUILD_PYTHON" ]; then
     PKG="$ROOT/logs/python-3.13.16-macos11.pkg"
     /usr/bin/curl --fail --location --proto '=https' --tlsv1.2 --retry 3 \
         https://www.python.org/ftp/python/3.13.16/python-3.13.16-macos11.pkg -o "$PKG"
-    SIGNATURE="$(/usr/sbin/pkgutil --check-signature "$PKG")"
-    printf '%s\n' "$SIGNATURE"
-    printf '%s\n' "$SIGNATURE" | /usr/bin/grep -q 'Python Software Foundation (DJ3H93M7VJ)' || { echo 'Подпись Python Software Foundation не подтверждена.'; exit 1; }
-    /usr/sbin/spctl --assess --type install --verbose "$PKG"
+    /bin/bash "$ROOT/tools/verify_python_macos.sh" "$PKG"
     echo 'Завершите установку Python в открывшемся системном окне и закройте Installer. Затем сборка продолжится.'
     /usr/bin/open -W -a Installer "$PKG"
     BUILD_PYTHON=/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13
@@ -67,5 +64,5 @@ if [ ! -x "$VENV/bin/python" ]; then "$BUILD_PYTHON" -m venv "$VENV"; fi
 "$VENV/bin/python" -c "$CHECK" || { echo 'Окружение .venv-macos не подходит. Переименуйте его и повторите сборку.'; exit 1; }
 "$VENV/bin/python" -m pip install -r requirements-build.txt
 "$VENV/bin/python" tools/build_release.py
-printf '\nГотово: release/StroyID-macOS-arm64.zip и release/StroyID-macOS-arm64.dmg\n'
+printf '\nГотово: %s/dist-macos/StroyID.app\n' "$ROOT"
 if [ "$NO_LAUNCH" -eq 0 ]; then /usr/bin/open "$ROOT/dist-macos/StroyID.app"; fi

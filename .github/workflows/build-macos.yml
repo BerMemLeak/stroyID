@@ -23,15 +23,17 @@ jobs:
           python-version: '3.13'
           architecture: arm64
           cache: pip
-      - name: Full setup, tests, native app, ZIP and DMG
+      - name: Verify the official Python installer used by bootstrap
+        run: |
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 3 https://www.python.org/ftp/python/3.13.16/python-3.13.16-macos11.pkg -o "$RUNNER_TEMP/python-bootstrap.pkg"
+          bash tools/verify_python_macos.sh "$RUNNER_TEMP/python-bootstrap.pkg"
+      - name: Full setup, tests and local native app
         run: bash setup_and_build_macos.command --no-launch
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: StroyID-macOS-arm64
+          name: macOS-build-validation
           path: |
-            release/StroyID-macOS-arm64.zip
-            release/StroyID-macOS-arm64.dmg
             release/build-report.json
             release/packaged-self-test.json
             release/word-macos-check.json

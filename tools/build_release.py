@@ -159,20 +159,19 @@ def build():
             raise ValueError('Packaged application self-test failed')
         report['packaged_check'] = test
         if is_mac:
-            from macos_release import package
-            report['stage'] = 'macos-zip-and-dmg'
-            artifacts = package(bundle, output)
-            target = artifacts[0]
-            report['artifacts'] = [p.name for p in artifacts]
+            target = bundle
         else:
             report['stage'] = 'publish-file'
             target = publish_executable(executable, output / filename)
         digest = hashlib.sha256()
-        with target.open('rb') as stream:
+        hash_file = executable if is_mac else target
+        with hash_file.open('rb') as stream:
             for data in iter(lambda: stream.read(1024 * 1024), b''):
                 digest.update(data)
         report.update(passed=True, stage='complete', returncode=0, mode='macos-app' if is_mac else 'onefile', artifact=target.name,
-                      sha256=digest.hexdigest(), size=target.stat().st_size)
+                      artifact_path=str(target.relative_to(ROOT)),
+                      sha256=digest.hexdigest(), sha256_file=str(hash_file.relative_to(target)) if is_mac else target.name,
+                      size=sum(p.stat().st_size for p in target.rglob('*') if p.is_file() and not p.is_symlink()) if is_mac else target.stat().st_size)
         print(f'\nREADY: {target}', flush=True)
         return 0
     except Exception as exc:

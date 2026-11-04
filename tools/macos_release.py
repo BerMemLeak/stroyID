@@ -1,13 +1,9 @@
-"""Native macOS bundle validation and distributable ZIP/DMG creation."""
-import json
-import os
+"""Native macOS icon generation and local app validation."""
 from pathlib import Path
 import platform
 import plistlib
-import shutil
 import subprocess
 import sys
-import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -62,33 +58,6 @@ def validate_bundle(bundle):
     return {'architecture': architecture, 'bundle_id': info['CFBundleIdentifier'],
             'signature': 'ad-hoc', 'notarized': False, 'webengine_helpers': len(helpers)}
 
-
-def package(bundle, output):
-    require_native_mac()
-    bundle, output = Path(bundle).resolve(), Path(output).resolve()
-    output.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='stroiid-package-', dir=output) as temporary:
-        temporary = Path(temporary)
-        archive = temporary/'StroyID-macOS-arm64.zip'
-        subprocess.run(['/usr/bin/ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', str(bundle), str(archive)], check=True, timeout=300)
-        stage = temporary/'image'
-        stage.mkdir()
-        shutil.copytree(bundle, stage/'StroyID.app', symlinks=True)
-        (stage/'Applications').symlink_to('/Applications', target_is_directory=True)
-        image = temporary/'StroyID-macOS-arm64.dmg'
-        subprocess.run(['/usr/bin/hdiutil', 'create', '-volname', 'СтройИД', '-srcfolder', str(stage),
-                        '-format', 'UDZO', '-ov', str(image)], check=True, timeout=300)
-        # Validate the archive the user will receive, not just the build directory.
-        extracted = temporary/'relocated'
-        subprocess.run(['/usr/bin/ditto', '-x', '-k', str(archive), str(extracted)], check=True, timeout=180)
-        validate_bundle(extracted/'StroyID.app')
-        subprocess.run(['/usr/bin/hdiutil', 'verify', str(image)], check=True, timeout=120)
-        files=[]
-        for file in (archive, image):
-            target = output/file.name
-            os.replace(file, target)
-            files.append(target)
-        return files
 
 
 if __name__ == '__main__':
