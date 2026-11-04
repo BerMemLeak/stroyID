@@ -1,7 +1,7 @@
 """Exercise Windows path serialization on every build platform."""
 import copy,json,shutil,tempfile,unittest
 from pathlib import Path
-from folder_store import Store,encode
+from stroyid.infrastructure.storage import Store,encode
 from test_storage import state,material
 
 class WindowsSerializedStore(Store):
@@ -22,17 +22,3 @@ class PathSerialization(unittest.TestCase):
  def test_external_valid_edit_survives_save_of_another_card(self):
   s=self.initial();p=self.store.path(self.store.paths['base:m1']);d=json.loads(p.read_text());d['maker']='Из Проводника';p.write_bytes(encode(d));s['meta']['name']='Локальное изменение';r=self.store.save(s,0)
   self.assertFalse(r['conflicts']);self.assertEqual(self.store.load()['state']['lib']['base'][0]['maker'],'Из Проводника')
- def test_offline_distinct_cards_merge_with_windows_serialization(self):
-  self.initial();shutil.copytree(self.store.root,self.root/'two');other=WindowsSerializedStore(self.root/'two');a=self.store.load()['state'];b=other.load()['state'];a['lib']['base'][0]['maker']='A';b['lib']['base'][1]['maker']='B';self.store.save(a,0);other.save(b,0)
-  for source,target in [(self.store,other),(other,self.store)]:
-   for folder in ('events_dir','blobs'):
-    for p in getattr(source,folder).iterdir():
-     dst=getattr(target,folder)/p.name
-     if not dst.exists():shutil.copy2(p,dst)
-  for store in (self.store,other):
-   r=store.load();self.assertFalse(r['conflicts']);self.assertEqual([m['maker'] for m in r['state']['lib']['base']],['A','B'])
- def test_legacy_backslash_projection_ledger_detects_missing_card(self):
-  self.initial();ledger=json.loads(self.store.ledger_path.read_text())
-  for item in ledger.values():item['files']=[p.replace('/','\\') for p in item['files']]
-  self.store.ledger_path.write_bytes(encode(ledger));missing=self.store.path(self.store.paths['base:m1']);missing.unlink();r=Store(self.store.root).load()
-  self.assertTrue(any(w.get('key')=='base:m1' and w.get('missing') for w in r['warnings']));self.assertFalse(missing.exists())

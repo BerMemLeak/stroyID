@@ -1,0 +1,10 @@
+{
+  "data": {
+    "id": "p",
+    "name": "УТК Боец"
+  },
+  "field": "projects",
+  "kind": "projects",
+  "parent": "root",
+  "position": 0
+}

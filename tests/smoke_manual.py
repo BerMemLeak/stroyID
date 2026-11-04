@@ -6,8 +6,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 from pypdf import PdfWriter
-from app import Window,dispose_window
-from folder_store import Store
+from stroyid.presentation.desktop.window import Window,dispose_window
+from stroyid.infrastructure.storage import Store
 app=QApplication([]);temp=tempfile.TemporaryDirectory();root=Path(temp.name);store=Store(root/'data')
 for name,width in [('private.pdf',600),('common.pdf',700)]:
  w=PdfWriter();w.add_blank_page(width,800);w.write(root/name)
@@ -25,8 +25,8 @@ def ready(value):
  for(let i=1;i<=auditName.length;i++){orgInput.value=auditName.slice(0,i);orgInput.dispatchEvent(new Event('input',{bubbles:true}));}
  const fullInput=document.querySelector('[data-ent="org"][data-f="full"]');fullInput.value='ООО Ремстрой';fullInput.dispatchEvent(new Event('input',{bubbles:true}));
  if(JSON.stringify(S.history)!==historyBefore)throw Error('History records draft letters');await new Promise(r=>setTimeout(r,250));const orgStored=await nativeCall('load');if(orgStored.state.lib.orgs[0].short!=='Новая организация'||JSON.stringify(orgStored.state.history)!==historyBefore)throw Error('Draft organization or history persisted');
- await A.desktopSave();const auditEntries=S.history.filter(x=>x.text.startsWith('Изменён(а) организация'));if(auditEntries.length!==1||!auditEntries[0].text.includes('Ремстрой'))throw Error('Expected one final organization history event: '+JSON.stringify(auditEntries));
- const savedHistory=JSON.stringify(S.history);const discardInput=document.querySelector('[data-ent="org"][data-f="short"]');discardInput.value='Отменённое имя';discardInput.dispatchEvent(new Event('input',{bubbles:true}));manualDiscard();if(JSON.stringify(S.history)!==savedHistory||manualAuditEdits.size)throw Error('Discard kept draft history');await A.desktopSave();if(JSON.stringify(S.history)!==savedHistory)throw Error('Discarded history reappeared');
+ await A.desktopSave();if(S.history.length)throw Error('History should be disabled');
+ const savedHistory=JSON.stringify(S.history);const discardInput=document.querySelector('[data-ent="org"][data-f="short"]');discardInput.value='Отменённое имя';discardInput.dispatchEvent(new Event('input',{bubbles:true}));manualDiscard();if(JSON.stringify(S.history)!==savedHistory)throw Error('Discard kept draft history');await A.desktopSave();if(JSON.stringify(S.history)!==savedHistory)throw Error('Discarded history reappeared');
 
  A.newProject();document.querySelector('#np-n').value='Объект один';document.querySelector('#np-a').value='Адрес из объекта';clickCreate();await desktopFlush(true);const p=S.projects[0];
  A.newSystem({p:p.id});document.querySelector('input[name=ns][value="ВК"]').checked=true;clickCreate();await desktopFlush(true);const s=p.systems[0];
@@ -63,7 +63,7 @@ def finish_idle():
   assert store.metrics['saves']==idle['saves'],(idle,store.metrics)
   assert store.metrics['hashed_files']==idle['hashed_files'],(idle,store.metrics)
   assert usage<10,usage
-  report={'version':'0.9.4','idle_seconds':round(elapsed,3),'main_process_cpu_percent_one_core':round(usage,3),'idle_storage_loads':0,'idle_storage_saves':0,'idle_document_hashes':0,'debounced_auto_save':True,'typing_no_navigation_rebuild':True,'history_one_final_card_event':True,'discard_removes_pending_history':True,'object_and_common_scope':True}
+  report={'version':'0.9.4','idle_seconds':round(elapsed,3),'main_process_cpu_percent_one_core':round(usage,3),'idle_storage_loads':0,'idle_storage_saves':0,'idle_document_hashes':0,'debounced_auto_save':True,'typing_no_navigation_rebuild':True,'history_disabled':True,'object_and_common_scope':True}
   Path('validation').mkdir(exist_ok=True);Path('validation/manual-and-idle.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8');window.grab().save(str(root/'manual-ui.png'))
   print('PASS: debounced auto-save, no per-letter persistence/chrome rebuild, cancelled Alt-Tab draft, prompt-free saved navigation, private/common passports and shared edits, automatic HTML/Word address, icon, migration review; idle CPU',round(usage,3),'%, zero storage refreshes/hashes')
   # Closing is the only automatic commit: keep this edit deliberately unsaved.
@@ -86,7 +86,7 @@ def check_failed_close():
     assert value is True,'Failed close lost entered data'
     store.save=original_save;stage=4;print('PASS: failed exit save keeps window and unsaved data; retry succeeds');window.close()
    except Exception:fail(traceback.format_exc())
-  window.page.runJavaScript("S.meta.name==='Автосохранено при закрытии'&&desktopDirty&&desktopError.includes('Проверочный отказ')&&manualAuditEdits.size===1&&!S.history.some(h=>h.text.includes('Компания при закрытии'))",receive_state)
+  window.page.runJavaScript("S.meta.name==='Автосохранено при закрытии'&&desktopDirty&&desktopError.includes('Проверочный отказ')&&!S.history.some(h=>h.text.includes('Компания при закрытии'))",receive_state)
  except Exception:fail(traceback.format_exc())
 
 def receive(value):
@@ -105,8 +105,8 @@ def poll():
  if stage==0:window.page.runJavaScript('window.desktopReady',ready)
  elif stage==1:window.page.runJavaScript('JSON.stringify(window.manualResult||null)',receive)
 timer=QTimer();timer.timeout.connect(poll);timer.start(100);QTimer.singleShot(90000,lambda:fail('Manual UI timed out'))
-with patch('app.QMessageBox.warning',return_value=None),patch('app.QFileDialog.getOpenFileName',side_effect=[(str(root/'private.pdf'),'PDF'),(str(root/'common.pdf'),'PDF')]):code=app.exec()
+with patch('stroyid.presentation.desktop.window.QMessageBox.warning',return_value=None),patch('stroyid.presentation.desktop.window.QFileDialog.getOpenFileName',side_effect=[(str(root/'private.pdf'),'PDF'),(str(root/'common.pdf'),'PDF')]):code=app.exec()
 dispose_window(window)
 if code==0:
- reopened=Store(store.root).load()['state'];assert reopened['meta']['name']=='Автосохранено при закрытии';assert len([h for h in reopened['history'] if 'Компания при закрытии' in h['text']])==1;print('PASS: automatic exit save and reopen; one final history event after failed save and retry')
+ reopened=Store(store.root).load()['state'];assert reopened['meta']['name']=='Автосохранено при закрытии';assert not reopened['history'];print('PASS: automatic exit save and reopen; no history after failed save and retry')
 store.close();temp.cleanup();print('\n'.join(errors));sys.exit(code)

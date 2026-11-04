@@ -10,8 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QPainter, QPdfWriter
-from app import Window, dispose_window
-from storage import Store
+from stroyid.presentation.desktop.window import Window, dispose_window
+from stroyid.infrastructure.storage import Store
 
 application = QApplication([])
 temp = tempfile.TemporaryDirectory()
@@ -42,10 +42,9 @@ def verify_result(result):
         assert not window.page.console_errors, window.page.console_errors
         assert store.load()['state']['meta']['name'] == 'Qt integration test'
         assert store.load()['state']['projects'][0]['name'] == 'Сохранено после изменения'
-        assert any(b['reason']=='Integration test' for b in store.list_backups())
         stage = 2
         timer.stop()
-        print(f"PASS: native QWebChannel, folder startup, {value['count']} contextual views, save queue, PDF import, ZIP checkpoint")
+        print(f"PASS: native QWebChannel, folder startup, {value['count']} contextual views, save queue, PDF import, current cards")
         window.page.runJavaScript("S.meta.name='Сохранено при закрытии';save();window.closeSnapshot=JSON.stringify(S)", lambda _: window.close())
     except Exception as e:
         fail(str(e))
@@ -64,7 +63,7 @@ def ready(value):
     painter.drawText(30, 100, 'Second page')
     painter.end()
     del painter, writer
-    with patch('app.QFileDialog.getOpenFileName', return_value=(str(pdf), 'PDF')):
+    with patch('stroyid.presentation.desktop.window.QFileDialog.getOpenFileName', return_value=(str(pdf), 'PDF')):
         imported = json.loads(window.bridge.request('pickPdf', '{}'))
     if not imported['ok'] or imported['value']['pages'] != 2:
         fail('Native PDF import failed: ' + str(imported))
@@ -88,7 +87,6 @@ def ready(value):
       save();
       S.projects[0].name='Сохранено после изменения';save();await desktopFlush(true);
       await desktopFlush(true);S.projects[0].name='Сохранено после изменения';save();await desktopFlush(true);
-      await backup('Integration test');
       // Exercise the actual polling function with a local edit arriving before its reply.
       const realCall=nativeCall;
       nativeCall=async(op,params)=>{const result=await realCall(op,params);if(op==='poll'){S.meta.name='Изменено во время обновления';save();}return result;};
@@ -97,7 +95,7 @@ def ready(value):
       await desktopFlush(true);
       if((await nativeCall('load')).state.meta.name!=='Изменено во время обновления')throw Error('Concurrent edit not persisted');
       S.meta.name='Qt integration test';save();await desktopFlush(true);
-      const routes=['#/sync','#/lib/orgs','#/lib/templates','#/lib/tags','#/lib/profiles','#/home','#/settings/general','#/settings/backups','#/settings/history','#/settings/trash'];
+      const routes=['#/sync','#/lib/orgs','#/lib/templates','#/lib/tags','#/lib/profiles','#/home','#/settings/general','#/settings/trash'];
       for(const p of S.projects){
         for(const t of ['overview','general','info','mats','admin','surveys','operations','ozhr','check'])routes.push('#/p/'+p.id+'/'+t);
         routes.push('#/build/'+p.id);

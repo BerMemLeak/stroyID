@@ -1,0 +1,31 @@
+{
+  "data": {
+    "aikLinks": {},
+    "date": "2026-10-12",
+    "executionId": "e1",
+    "id": "a-s1",
+    "materials": [
+      "m"
+    ],
+    "num": "АОСР-1.1",
+    "photos": [],
+    "place": "Корпус",
+    "scan": {
+      "file": "",
+      "pages": 0
+    },
+    "schemeLinks": [],
+    "schemes": [],
+    "subs": [
+      "sp"
+    ],
+    "testLinks": [],
+    "tests": [],
+    "type": "АОСР",
+    "works": "Проходки"
+  },
+  "field": "acts",
+  "kind": "acts",
+  "parent": "systems:s1",
+  "position": 0
+}

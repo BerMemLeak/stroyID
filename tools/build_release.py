@@ -88,6 +88,7 @@ def build():
         if is_mac:
             from macos_release import require_native_mac
             require_native_mac()
+        command([sys.executable, 'tools/build_frontend.py'], stage='frontend')
         report['stage'] = 'unit-tests'
         command([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-v'], 120, stage=report['stage'])
         report['stage'] = 'document-tags'
@@ -118,8 +119,8 @@ def build():
         command([sys.executable,'tests/smoke_save_locks.py'],150,stage=report['stage'])
         report['stage'] = 'qt-document-workflow'
         command([sys.executable,'tests/smoke_workflow.py'],120,stage=report['stage'])
-        report['stage'] = 'qt-card-history'
-        command([sys.executable,'tests/smoke_history.py'],150,stage=report['stage'])
+        report['stage'] = 'qt-snapshot'
+        command([sys.executable,'tests/smoke_snapshot.py'],150,stage=report['stage'])
         report['stage'] = 'qt-frame-reference'
         command([sys.executable,'tests/smoke_frames.py'],120,stage=report['stage'])
         report['stage'] = 'qt-navigation-and-preview'

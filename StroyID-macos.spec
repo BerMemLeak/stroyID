@@ -1,7 +1,7 @@
 # Native Apple Silicon .app, with Qt frameworks and the embedded UI.
 from pathlib import Path
 project = Path(SPECPATH)
-a = Analysis([str(project/'app.py')], pathex=[str(project)],
+a = Analysis([str(project/'app.py')], pathex=[str(project / "src")],
              binaries=[], datas=[(str(project/'ui'), 'ui'),
                                  (str(project/'THIRD_PARTY.md'), '.'),
                                  (str(project/'README.md'), '.')],

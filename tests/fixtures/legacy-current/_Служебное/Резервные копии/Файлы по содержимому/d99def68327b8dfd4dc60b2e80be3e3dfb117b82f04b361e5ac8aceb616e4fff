@@ -1,0 +1,11 @@
+{
+  "data": {
+    "date": "2026-10-12",
+    "id": "e1",
+    "name": "Выполнение 1"
+  },
+  "field": "executions",
+  "kind": "executions",
+  "parent": "projects:p",
+  "position": 0
+}

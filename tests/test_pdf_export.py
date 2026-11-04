@@ -6,8 +6,8 @@ from pathlib import Path
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen') if os.name != 'nt' else None
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfReader, PdfWriter
-from storage import Store
-from pdf_export import prepare_export, render_html, write_export
+from stroyid.infrastructure.storage import Store
+from stroyid.application.exports.pdf import prepare_export, render_html, write_export
 from pdf_text import page_text
 
 
@@ -65,7 +65,7 @@ class PdfExportTests(unittest.TestCase):
 
     def test_shared_pdf_is_parsed_once_and_ranges_stay_independent(self):
         from unittest.mock import patch
-        import pdf_export
+        import stroyid.application.exports.pdf as pdf_export
         plan={'volumes':[{'title':'Том','documents':[
             {'kind':'pdf','id':'first','name':'Первый акт','key':self.asset['id'],'from':1,'to':1},
             {'kind':'pdf','id':'second','name':'Второй акт','key':self.asset['id'],'from':2,'to':3}]}]}

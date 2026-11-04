@@ -6,9 +6,9 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QImage
 from pypdf import PdfWriter,PdfReader
-from app import Window,dispose_window
-from folder_store import Store
-from pdf_export import prepare_export,write_export
+from stroyid.presentation.desktop.window import Window,dispose_window
+from stroyid.infrastructure.storage import Store
+from stroyid.application.exports.pdf import prepare_export,write_export
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();root=Path(tmp.name);store=Store(root/'database')
 w=PdfWriter();w.add_blank_page(210,297);w.add_blank_page(420,297);w.write(root/'source.pdf');w.close();asset=store.import_file(root/'source.pdf')
 image=QImage(10,10,QImage.Format.Format_RGB32);image.fill(0xffffff);image.save(str(root/'photo.png'));photo='data:image/png;base64,'+base64.b64encode((root/'photo.png').read_bytes()).decode()

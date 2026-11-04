@@ -5,17 +5,17 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
-from app import Window,dispose_window
-from folder_store import Store
+from stroyid.presentation.desktop.window import Window,dispose_window
+from stroyid.infrastructure.storage import Store
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();root=Path(tmp.name);store=Store(root/'database');window=Window(store,test_profile=True);window.show();stage=0;errors=[];counts={};faults=0;real_replace=os.replace
 
 def sharing_replace(source,destination):
  global faults
  target=Path(destination)
- if target.suffix=='.json' and 'История' in target.parts:
+ if target.suffix=='.json' and target.name=='База.json':
   key=str(target);n=counts.get(key,0);counts[key]=n+1
-  if n<2:
-   faults+=1;e=PermissionError(13,'Проверочная краткая блокировка истории');e.winerror=5;raise e
+  if n%3<2:
+   faults+=1;e=PermissionError(13,'Проверочная краткая блокировка текущей карточки');e.winerror=5;raise e
  return real_replace(source,destination)
 def fail(error):errors.append(str(error));app.exit(1)
 def ready(v):
@@ -40,7 +40,7 @@ def poll():
  if not stage:window.page.runJavaScript('window.desktopReady',ready)
  elif stage==1:window.page.runJavaScript('window.lockedSaveResult?JSON.stringify(window.lockedSaveResult):null',received)
 timer=QTimer();timer.timeout.connect(poll);timer.start(150);QTimer.singleShot(90000,lambda:fail('Save/lock UI timed out'))
-with patch('folder_core.os.replace',side_effect=sharing_replace):code=app.exec()
+with patch('stroyid.infrastructure.storage.records.os.replace',side_effect=sharing_replace):code=app.exec()
 dispose_window(window)
 try:
  if code==0:

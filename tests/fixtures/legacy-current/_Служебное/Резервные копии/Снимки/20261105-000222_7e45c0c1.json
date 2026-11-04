@@ -1,0 +1,18 @@
+{
+  "assets": {
+    "Справочники/Материалы и паспорта/Труба/Паспорт_Труба_1.pdf": "b3e44df802e407df3d586bb3d4b3a7db17bc868565f04a061077f7d8de3e44bd"
+  },
+  "format": "stroiid-folders-2",
+  "reason": "Автоматически",
+  "records": {
+    "acts:a-s1": "cba5704307ef5b673fb7336490f42570347c6b7fdc2b9272592dcc56f9de9612",
+    "base:m": "99ff5a383e8cbc16f6415e767bb930798fd3d6b55ad05722f25076091b581aa2",
+    "executions:e1": "d99def68327b8dfd4dc60b2e80be3e3dfb117b82f04b361e5ac8aceb616e4fff",
+    "executions:e2": "0279882cf6f2f1767f3cf7676c3a4dd8c06f409a295e7b2ede6ab4130284f4fc",
+    "projects:p": "42c09b36327d291f01512e623fd98f0d3e71f6539d7a2cf4364cd65821664616",
+    "root": "5e8463e7a367f3c9cfdbd2d6e3beec75955e382d786bca27b4aea964991bc086",
+    "systems:s1": "891b144460f9d6bc3fde0e49b4d787313f9b312ae576b75a256e64103163e95d"
+  },
+  "sha256": "9d197a381f3b25a59e01d0fa57ecc26fb1e676b3e52d641f7f391472be43f250",
+  "ts": "2026-11-04T21:02:22.360572+00:00"
+}

@@ -1,0 +1,44 @@
+{
+  "by": "ПК",
+  "changedFields": [
+    "cipher",
+    "code",
+    "executionId",
+    "id",
+    "name",
+    "scheme",
+    "subprofiles"
+  ],
+  "id": "dfae2f73091e4929877da2017af02ce1",
+  "key": "systems:s1",
+  "number": 1,
+  "parents": [],
+  "path": "УТК Боец/Выполнение 1/ВК — Водоснабжение/Карточка.json",
+  "pc": "ПК",
+  "record": {
+    "data": {
+      "cipher": "ВК-001",
+      "code": "ВК",
+      "executionId": "e1",
+      "id": "s1",
+      "name": "Водоснабжение",
+      "scheme": {
+        "file": "",
+        "pages": 0
+      },
+      "subprofiles": [
+        {
+          "id": "sp-s1",
+          "name": "Основной",
+          "profileId": "pf",
+          "signers": {}
+        }
+      ]
+    },
+    "field": "systems",
+    "kind": "systems",
+    "parent": "projects:p",
+    "position": 0
+  },
+  "ts": "2026-11-04T21:02:22.273714+00:00"
+}

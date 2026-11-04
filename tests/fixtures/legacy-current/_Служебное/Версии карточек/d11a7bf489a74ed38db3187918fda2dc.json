@@ -1,0 +1,42 @@
+{
+  "by": "ПК",
+  "changedFields": [
+    "maker"
+  ],
+  "id": "d11a7bf489a74ed38db3187918fda2dc",
+  "key": "base:m",
+  "number": 2,
+  "parents": [
+    "cc978230585745ecbeadc9d4f8a7a659"
+  ],
+  "path": "Справочники/Материалы и паспорта/Труба/Материал.json",
+  "pc": "ПК",
+  "record": {
+    "data": {
+      "brand": "",
+      "category": "",
+      "docs": [
+        {
+          "date": "",
+          "file": "Паспорт_Труба_1.pdf",
+          "fileHash": "b3e44df802e407df3d586bb3d4b3a7db17bc868565f04a061077f7d8de3e44bd",
+          "fileKey": "Справочники/Материалы и паспорта/Труба/Паспорт_Труба_1.pdf",
+          "id": "d",
+          "num": "1",
+          "pages": 1,
+          "type": "Паспорт"
+        }
+      ],
+      "id": "m",
+      "maker": "Текущий",
+      "name": "Труба",
+      "note": "",
+      "scope": "common"
+    },
+    "field": "base",
+    "kind": "base",
+    "parent": "root",
+    "position": 0
+  },
+  "ts": "2026-11-04T21:02:22.337280+00:00"
+}

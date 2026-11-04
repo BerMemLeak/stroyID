@@ -12,10 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfReader
-from app import Window, dispose_window
-from storage import Store
-from word_templates import sample_docx, package, inspect_docx
-from pdf_export import render_html
+from stroyid.presentation.desktop.window import Window, dispose_window
+from stroyid.infrastructure.storage import Store
+from stroyid.infrastructure.documents.word_templates import sample_docx, package, inspect_docx
+from stroyid.application.exports.pdf import render_html
 from pdf_text import page_text
 
 application = QApplication.instance() or QApplication([])
@@ -93,8 +93,8 @@ def ready(value):
       history.replaceState(null,'','#/build/'+p.id+'/'+vol.key);render();const result=await A.downloadAssemblyPdf({all:'1'});if(!result)throw Error(document.querySelector('#modal-root').innerText);
       closeModal();S.ui.wordObject=p.id;S.ui.wordProfile=s.subprofiles[0].profileId;S.ui.wordOpen={aosr:true};go('#/lib/templates');render();save();await desktopFlush(true);
       await A.wordSample({section:'spj'});if(!S.lib.templates.at(-1).fileKey)throw Error('Example DOCX not created');
-      const backup=await nativeCall('backup',{reason:'Word test',state:S});
-      window.wordSmokeResult=JSON.stringify({ok:true,pages:result.pages,backup:backup.path,basic:basic.id,profile:profile.id});
+      window.portableWordState=JSON.parse(JSON.stringify(S));
+      window.wordSmokeResult=JSON.stringify({ok:true,pages:result.pages,basic:basic.id,profile:profile.id});
     }catch(e){window.wordSmokeResult=JSON.stringify({ok:false,error:e.stack});}})();'''.replace('SIGNED', json.dumps(signed_asset))
     window.page.runJavaScript(script)
 
@@ -121,8 +121,11 @@ def finished(value):
         restored = Store(root / 'restored')
         try:
             archive = root / 'transfer.zip'
-            store.export_backup(Path(result['backup']).name, archive)
-            loaded = restored.restore(archive)['state']
+            store.portable_export(store.load()['state'], archive)
+            import zipfile
+            with zipfile.ZipFile(archive) as archive_content:archive_content.extractall(root/'unpacked')
+            restored = Store(root/'unpacked/СтройИД')
+            loaded = restored.load()['state']
             assert loaded['projects'][0]['wordTemplates']['aosr'] == result['basic']
             assert loaded['projects'][1]['wordTemplates'] == {}
             for t in loaded['lib']['templates']:
@@ -134,7 +137,7 @@ def finished(value):
         window.page.runJavaScript("document.querySelector('#toast').innerHTML='';document.querySelector('[data-word-section=\"aosr\"]').scrollIntoView({block:'center'})")
         QTimer.singleShot(200, capture_and_close)
         stage = 2
-        print('PASS: DOCX import, Word opening, filled preview, document sections and HTML frame, object/profile isolation, signed-PDF priority, full PDF with Word forms and registry, DOCX backup/restore')
+        print('PASS: DOCX import, Word opening, filled preview, document sections and HTML frame, object/profile isolation, signed-PDF priority, full PDF with Word forms and registry, DOCX portable snapshot')
     except Exception as exc:
         fail(exc)
 
@@ -156,10 +159,10 @@ timer = QTimer()
 timer.timeout.connect(poll)
 timer.start(150)
 QTimer.singleShot(60000, lambda: fail('Word UI test timed out'))
-with patch('app.QFileDialog.getOpenFileName', side_effect=[(str(x), 'DOCX') for x in (act, profile_act, title, reg)]), \
-     patch('app.QFileDialog.getSaveFileName', return_value=(str(output), 'PDF')), \
-     patch('word_templates.open_in_word', side_effect=fake_word_open), \
-     patch('pdf_export.convert_docx_batch', side_effect=fake_word_converter):
+with patch('stroyid.presentation.desktop.window.QFileDialog.getOpenFileName', side_effect=[(str(x), 'DOCX') for x in (act, profile_act, title, reg)]), \
+     patch('stroyid.presentation.desktop.window.QFileDialog.getSaveFileName', return_value=(str(output), 'PDF')), \
+     patch('stroyid.infrastructure.documents.word_templates.open_in_word', side_effect=fake_word_open), \
+     patch('stroyid.application.exports.pdf.convert_docx_batch', side_effect=fake_word_converter):
     code = application.exec()
 dispose_window(window)
 store.close()

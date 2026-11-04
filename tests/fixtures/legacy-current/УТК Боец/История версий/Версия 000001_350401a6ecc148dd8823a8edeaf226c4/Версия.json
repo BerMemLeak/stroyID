@@ -1,0 +1,21 @@
+{
+  "action": "edit",
+  "by": "ПК",
+  "files": [],
+  "id": "350401a6ecc148dd8823a8edeaf226c4",
+  "number": 1,
+  "parents": [],
+  "pc": "ПК",
+  "record": {
+    "data": {
+      "id": "p",
+      "name": "УТК Боец"
+    },
+    "field": "projects",
+    "kind": "projects",
+    "parent": "root",
+    "position": 0
+  },
+  "sourceVersion": null,
+  "ts": "2026-11-04T21:02:22.275665+00:00"
+}

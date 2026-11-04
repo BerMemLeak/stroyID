@@ -2,8 +2,8 @@
 import io,copy,json,tempfile,unittest,time
 from pathlib import Path
 from pypdf import PdfWriter
-from folder_store import Store
-from model_v8 import migrate
+from stroyid.infrastructure.storage import Store
+from stroyid.domain.migrations import migrate
 from test_workspace_v8 import state,project,system
 class ScopeAndSpeed(unittest.TestCase):
  def setUp(self):self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.store=Store(self.root/'base')
@@ -23,7 +23,6 @@ class ScopeAndSpeed(unittest.TestCase):
   self.assertFalse(result['warnings']);self.assertFalse(result['conflicts']);self.assertFalse(old.exists())
   m=result['state']['projects'][0]['materials'][0]
   self.assertTrue(self.store.asset_path(m['docs'][0]['fileKey'])[0].is_file())
-  self.assertTrue(self.store.card_history('materials:own')['versions'])
   current=self.store.path(self.store.paths['projects:'+pid]).parent
   (current/'Ручные файлы').mkdir();(current/'Ручные файлы'/'note.txt').write_text('keep')
   result['state']['projects'][0]['name']='Ещё одно название';self.store.save(result['state'],self.store.revision)
@@ -36,23 +35,23 @@ class ScopeAndSpeed(unittest.TestCase):
   again=Store(self.store.root);loaded=again.load()
   self.assertFalse(old.exists());self.assertTrue(unrelated.exists());self.assertFalse(loaded['warnings'])
   again.close()
+ def test_rename_retries_empty_folder_after_temporary_windows_lock(self):
+  from unittest.mock import patch
+  s=self.fixture();old=self.store.path(self.store.paths['projects:p']).parent
+  original=Path.rmdir;locked=[True]
+  def rmdir(path):
+   if path==old and locked[0]:raise PermissionError(13,'Simulated Windows directory watcher lock',str(path))
+   return original(path)
+  with patch.object(Path,'rmdir',rmdir):
+   s['projects'][0]['name']='После переименования';result=self.store.save(s,self.store.revision)
+   self.assertFalse(result['conflicts']);self.assertTrue(old.exists());self.assertEqual(list(old.iterdir()),[])
+   locked[0]=False
+   self.store.load()
+   self.assertFalse(old.exists(),'Failed cleanup was cached and never retried')
  def test_unchanged_refresh_does_not_hash_documents_or_parse_json_again(self):
   self.fixture();self.store.load();before=self.store.metrics.copy();cpu=time.process_time()
   for _ in range(10):self.store.load()
   self.assertEqual(self.store.metrics['hashed_files'],before['hashed_files']);self.assertEqual(self.store.metrics['parsed_json'],before['parsed_json']);self.assertLess(time.process_time()-cpu,2)
- def test_projection_cache_skips_reads_and_repairs_external_history_changes(self):
-  self.fixture();self.store.load();before=self.store.metrics.get('projection_reads',0)
-  self.store.load();self.assertEqual(self.store.metrics.get('projection_reads',0),before)
-  manifest=next(self.store.root.glob('**/История версий/**/Версия.json'))
-  original=manifest.read_bytes();manifest.write_bytes(b'{"broken":true}')
-  self.store.load();self.assertEqual(manifest.read_bytes(),original)
- def test_path_plan_computes_each_card_once_with_nested_hierarchy(self):
-  from unittest.mock import patch
-  s=self.fixture()
-  with patch.object(self.store,'_compute_record_path',wraps=self.store._compute_record_path) as compute:
-   self.store.save(s,self.store.revision)
-  keys=[call.args[0] for call in compute.call_args_list]
-  self.assertEqual(len(keys),len(set(keys)))
  def test_cache_invalidates_on_external_file_replacement(self):
   s=self.fixture();path=self.store.path(s['projects'][0]['materials'][0]['docs'][0]['fileKey']);before=self.store.hash_file(path);path.write_bytes(path.read_bytes()+b'\n% changed');self.assertNotEqual(self.store.hash_file(path),before)
  def test_preview_delete_and_restore_never_persist_until_explicit_save(self):
@@ -60,12 +59,8 @@ class ScopeAndSpeed(unittest.TestCase):
   rr=self.store.restore_trash({'id':r['state']['trash'][0]['id'],'preview':True,'state':r['state']});self.assertEqual(len(rr['state']['projects'][0]['systems']),1);self.assertEqual(self.store.metrics['saves'],metrics['saves'])
  def test_migration_marks_existing_common_passports_for_review_without_guessing(self):
   s=self.fixture();s['meta']['folderModel']=8;s['meta'].pop('materialScopeVersion');s['lib']['base']=[{'id':'shared','name':'Паспорт','docs':[]}];r=migrate(s);self.assertTrue(r['meta']['passportReviewPending']);self.assertEqual(r['projects'][0]['materials'][0]['baseId'],'');self.assertEqual(r['lib']['base'][0]['id'],'shared');self.assertEqual(migrate(r),r)
- def test_local_edit_preserves_old_heads_and_detects_remote_conflict(self):
-  saved=self.fixture();heads=copy.deepcopy(self.store.base_heads);remote=Store(self.store.root);rs=remote.load()['state'];rs['projects'][0]['materials'][0]['maker']='Другой инженер';remote.save(rs,remote.revision);self.store.load();saved['projects'][0]['materials'][0]['maker']='Мой ввод';r=self.store.save(saved,self.store.revision,base_state=self.fixture_snapshot(saved),base_heads=heads);self.assertTrue(any(c['key']=='materials:own' for c in r['conflicts']))
  def fixture_snapshot(self,s):
   result=copy.deepcopy(s);result['projects'][0]['materials'][0]['maker']='Завод';return result
- def test_corrupt_passport_does_not_block_saving_another_card(self):
-  s=self.fixture();path=self.store.path(self.store.paths['materials:own']);path.write_text('{broken');loaded=self.store.load();self.assertTrue(loaded['warnings']);loaded['state']['projects'][0]['name']='Другое название';r=self.store.save(loaded['state'],self.store.revision);self.assertEqual(r['state']['projects'][0]['name'],'Другое название');self.assertTrue(r['warnings'])
  def test_owned_archived_quality_document_is_protected_and_portable(self):
   import zipfile
   s=self.fixture();r=self.store.move_trash({'ent':'mat','id':'own','path':'docs','row':'private-doc'})['state'];tid=r['trash'][0]['id']

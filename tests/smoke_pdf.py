@@ -12,9 +12,9 @@ from PySide6.QtCore import QTimer, QBuffer, QIODevice
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfReader, PdfWriter
 from PySide6.QtGui import QImage
-from app import Window, dispose_window
-from storage import Store
-from pdf_export import render_html
+from stroyid.presentation.desktop.window import Window, dispose_window
+from stroyid.infrastructure.storage import Store
+from stroyid.application.exports.pdf import render_html
 from pdf_text import page_text
 
 application = QApplication.instance() or QApplication([])
@@ -137,7 +137,7 @@ timer = QTimer()
 timer.timeout.connect(poll)
 timer.start(200)
 QTimer.singleShot(60000, lambda: fail('PDF UI test timed out'))
-with patch('drawing_frame.resolve_frame_font', return_value='DejaVu Sans'), patch('app.QFileDialog.getSaveFileName', return_value=(str(output), 'PDF')):
+with patch('stroyid.infrastructure.documents.drawing_frame.resolve_frame_font', return_value='DejaVu Sans'), patch('stroyid.presentation.desktop.window.QFileDialog.getSaveFileName', return_value=(str(output), 'PDF')):
     code = application.exec()
 dispose_window(window)
 store.close()

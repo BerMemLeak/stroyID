@@ -6,8 +6,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfWriter
-from app import Window, dispose_window
-from folder_store import Store
+from stroyid.presentation.desktop.window import Window, dispose_window
+from stroyid.infrastructure.storage import Store
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();root=Path(tmp.name);store=Store(root/'db')
 w=PdfWriter();w.add_blank_page(595,842);w.write(root/'certificate.pdf')
 window=Window(store,test_profile=True);window.show();stage=0;errors=[]
@@ -62,5 +62,5 @@ def poll():
  if stage==0:window.page.runJavaScript('window.desktopReady',ready)
  elif stage==1:window.page.runJavaScript('window.workflowResult?JSON.stringify(window.workflowResult):null',receive)
 timer=QTimer();timer.timeout.connect(poll);timer.start(100);QTimer.singleShot(60000,lambda:fail('Workflow timed out'))
-with patch('app.QFileDialog.getOpenFileName',return_value=(str(root/'certificate.pdf'),'PDF')):code=app.exec()
+with patch('stroyid.presentation.desktop.window.QFileDialog.getOpenFileName',return_value=(str(root/'certificate.pdf'),'PDF')):code=app.exec()
 dispose_window(window);store.close();tmp.cleanup();print('\n'.join(errors));sys.exit(code)

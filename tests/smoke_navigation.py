@@ -5,8 +5,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfWriter
-from app import Window,dispose_window
-from storage import Store
+from stroyid.presentation.desktop.window import Window,dispose_window
+from stroyid.infrastructure.storage import Store
 app=QApplication([]);temp=tempfile.TemporaryDirectory();root=Path(temp.name);store=Store(root/'data')
 w=PdfWriter();w.add_blank_page(1191,842);w.add_blank_page(1191,842);w.write(root/'source.pdf');asset=store.import_file(root/'source.pdf')
 window=Window(store,test_profile=True);window.show();stage=0;errors=[]

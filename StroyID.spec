@@ -1,7 +1,7 @@
 # Build on Windows x64 with Python 3.12/3.13. PyInstaller's PySide6 hooks collect QtWebEngine.
 from pathlib import Path
 project = Path(SPECPATH)
-a = Analysis([str(project / 'app.py')], pathex=[str(project)],
+a = Analysis([str(project / 'app.py')], pathex=[str(project / "src")],
              binaries=[], datas=[(str(project / 'ui'), 'ui'),
                                  (str(project / 'THIRD_PARTY.md'), '.'),
                                  (str(project / 'README.md'), '.')],

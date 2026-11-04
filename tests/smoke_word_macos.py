@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from word_templates import sample_docx, inspect_docx, fill_docx, convert_docx_batch
+from stroyid.infrastructure.documents.word_templates import sample_docx, inspect_docx, fill_docx, convert_docx_batch
 from pypdf import PdfReader
 
 
@@ -19,7 +19,7 @@ def run(report_path):
         if os.environ.get('STROYID_SKIP_WORD_INTEGRATION') == '1':
             report['reason']='Real Word integration explicitly disabled on this unattended runner'
             return 0
-        from macos_word import word_application
+        from stroyid.infrastructure.documents.macos_word import word_application
         try:
             word_application()
         except ValueError as exc:

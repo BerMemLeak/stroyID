@@ -10,12 +10,12 @@ from unittest.mock import patch
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfReader, PdfWriter
-from storage import Store
+from stroyid.infrastructure.storage import Store
 from test_storage import state
-from material_import import preview_import, commit_import
-from pdf_export import prepare_export
-from act_registers import expand_registers, ActPageError
-from print_export import write_print_folder
+from stroyid.application.materials.importer import preview_import, commit_import
+from stroyid.application.exports.pdf import prepare_export
+from stroyid.application.documents.registers import expand_registers, ActPageError
+from stroyid.application.exports.printing import write_print_folder
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -127,9 +127,9 @@ class PrintMaterialsTests(unittest.TestCase):
         self.assertIn('Реестр материалов',' '.join(docs[0]['reader'].pages[0].extract_text().split()))
         self.assertEqual(item['actRegister']['values']['АОСР.Материалы'],raw)
     def test_builtin_register_fills_canonical_template_and_real_attachment_counts(self):
-        from word_templates import inspect_docx,package
+        from stroyid.infrastructure.documents.word_templates import inspect_docx,package
         template=ROOT/'ui/reference-templates/act-register.docx'
-        from document_tags import collection_tags
+        from stroyid.domain.document_tags import collection_tags
         values={k:'Тест' for k in inspect_docx(template.read_bytes())['tags'] if k not in collection_tags()}
         values.update({'АОСР.Приложения':'Ведомость [[QUANTITY_SHEETS:q]] л.','АОСР.Дата':'01.10.2025'})
         act={'id':'a','kind':'html','type':'АОСР','name':'Акт','html':'<p>Приложения</p>',
@@ -144,7 +144,7 @@ class PrintMaterialsTests(unittest.TestCase):
                 data=Path(src).read_bytes();self.assertFalse(inspect_docx(data)['tags'])
                 seen.append(package(data)['word/document.xml'].decode())
                 pdf(dst,[(595,842)])
-        with patch('pdf_export.convert_docx_batch',convert):result=prepare_export(self.store,plan)
+        with patch('stroyid.application.exports.pdf.convert_docx_batch',convert):result=prepare_export(self.store,plan)
         self.assertEqual(result['documents'],3)
         self.assertNotIn('[[QUANTITY_SHEETS:q]]',seen[-1]);self.assertIn('Ведомость 3 л.',seen[-1])
     def test_print_groups_rotation_blank_backs_and_input_unchanged(self):
@@ -168,6 +168,6 @@ class PrintMaterialsTests(unittest.TestCase):
         pdf(self.root/'one.pdf',[(595,842)]);reader=PdfReader(self.root/'one.pdf')
         ready={'volumes':[{'title':'Том','documents':[{'id':'1','name':'Документ','reader':reader,'selection':[0]}]}]}
         target=self.root/'failed'
-        with patch('print_export.render_html',side_effect=RuntimeError('render failed')):
+        with patch('stroyid.application.exports.printing.render_html',side_effect=RuntimeError('render failed')):
             with self.assertRaises(RuntimeError):write_print_folder(self.store,[ready],target)
         self.assertFalse(target.exists())

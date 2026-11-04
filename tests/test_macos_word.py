@@ -10,8 +10,8 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 from pypdf import PdfWriter
-import macos_word as mac
-import word_templates
+import stroyid.infrastructure.documents.macos_word as mac
+import stroyid.infrastructure.documents.word_templates as word_templates
 
 
 def pdf_bytes():

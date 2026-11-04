@@ -4,8 +4,8 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
-from app import Window,dispose_window
-from storage import Store
+from stroyid.presentation.desktop.window import Window,dispose_window
+from stroyid.infrastructure.storage import Store
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();store=Store(Path(tmp.name)/'db')
 window=Window(store,test_profile=True);window.resize(1400,1000);window.show();stage=0;errors=[]
 def fail(e): errors.append(str(e));app.exit(1)
@@ -59,7 +59,7 @@ def receive(value):
  if result.get('error'):fail(result['error']);return
  try:
   assert not window.page.console_errors,window.page.console_errors
-  from word_templates import sample_docx,fill_docx,inspect_docx
+  from stroyid.infrastructure.documents.word_templates import sample_docx,fill_docx,inspect_docx
   c=result['context'];source=sample_docx('aosr','АОСР',Path(tmp.name)/'source.docx')
   out=fill_docx(source.read_bytes(),Path(tmp.name)/'filled.docx',c['values'],c['collections'])
   assert not inspect_docx(out.read_bytes())['tags']

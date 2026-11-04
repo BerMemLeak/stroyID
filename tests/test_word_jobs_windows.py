@@ -1,7 +1,7 @@
 """Exercise the actual Windows PowerShell JSON loop with a fake Word COM object."""
 import json, shutil, subprocess, tempfile, unittest
 from pathlib import Path
-from word_templates import WORD_SCRIPT
+from stroyid.infrastructure.documents.word_templates import WORD_SCRIPT
 
 @unittest.skipUnless(shutil.which('powershell.exe'), 'Windows PowerShell is required')
 class WordJobsWindowsTests(unittest.TestCase):

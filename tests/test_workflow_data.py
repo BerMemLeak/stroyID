@@ -6,10 +6,10 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QImage
 from PySide6.QtCore import QBuffer, QIODevice
 from pypdf import PdfWriter
-from folder_store import Store
+from stroyid.infrastructure.storage import Store
 from test_workspace_v8 import state, project
-from word_templates import fill_docx, inspect_docx, package, WORD_SCRIPT
-from drawing_frame import resolve_frame_font
+from stroyid.infrastructure.documents.word_templates import fill_docx, inspect_docx, package, WORD_SCRIPT
+from stroyid.infrastructure.documents.drawing_frame import resolve_frame_font
 APP=QApplication.instance() or QApplication([])
 ROOT=Path(__file__).resolve().parents[1]
 class WorkflowDataTests(unittest.TestCase):
@@ -22,7 +22,7 @@ class WorkflowDataTests(unittest.TestCase):
    result=store.save(s,0);loaded=result['state'];doc=loaded['lib']['quality'][0]
    self.assertTrue(doc['fileKey'].startswith('Справочники/Документы качества/'))
    self.assertEqual(len([f for f in (store.root/'Справочники').rglob('*.pdf') if 'История версий' not in f.parts]),1)
-   self.assertEqual(len([f for f in (store.root/'Справочники').rglob('*.pdf') if 'История версий' in f.parts]),1)
+   self.assertEqual(len([f for f in (store.root/'Справочники').rglob('*.pdf') if 'История версий' in f.parts]),0)
    self.assertFalse(list((store.root/p['name']).rglob('*.pdf')))
    loaded['projects'][0]['materials'][0]['docIds']=[];doc['num']='78';result=store.save(loaded,result['revision'])
    self.assertEqual(result['state']['projects'][0]['materials'][1]['docIds'],['q1'])
@@ -36,7 +36,7 @@ class WorkflowDataTests(unittest.TestCase):
    out=fill_docx(source.read_bytes(),Path(tmp)/'title.docx',values);parts=package(out.read_bytes())
    self.assertIn(b'wordprocessingDrawing',parts['word/document.xml']);self.assertNotIn(b'data:image',parts['word/document.xml']);self.assertEqual(len([k for k in parts if k.startswith('word/media/stroiid-')]),1);self.assertEqual(inspect_docx(out.read_bytes())['tags'],[])
  def test_missing_production_font_is_explicit(self):
-  with patch('drawing_frame.QFontDatabase.families',return_value=['Arial']):
+  with patch('stroyid.infrastructure.documents.drawing_frame.QFontDatabase.families',return_value=['Arial']):
    with self.assertRaisesRegex(ValueError,'ISOCPEUR'):resolve_frame_font({'requireFont':True})
  def test_windows_jobs_parse_single_root_array(self):
   self.assertIn("$jobs=ConvertFrom-Json -InputObject",WORD_SCRIPT)

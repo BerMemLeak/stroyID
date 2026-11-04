@@ -7,9 +7,9 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
-from word_templates import W, TAG, fill_docx, inspect_docx, package, sample_docx, convert_docx_batch
-from pdf_export import prepare_export, render_html
-from storage import Store
+from stroyid.infrastructure.documents.word_templates import W, TAG, fill_docx, inspect_docx, package, sample_docx, convert_docx_batch
+from stroyid.application.exports.pdf import prepare_export, render_html
+from stroyid.infrastructure.storage import Store
 from PySide6.QtWidgets import QApplication
 
 APP = QApplication.instance() or QApplication([])
@@ -29,7 +29,7 @@ class WordTemplateTests(unittest.TestCase):
         return path
 
     def context(self, source):
-        return {x: 'Значение ' + x for x in inspect_docx(source.read_bytes())['tags'] if x not in __import__('document_tags').collection_tags()}
+        return {x: 'Значение ' + x for x in inspect_docx(source.read_bytes())['tags'] if x not in __import__('stroyid.domain.document_tags',fromlist=['*']).collection_tags()}
 
     def test_split_runs_headers_styles_and_source_unchanged(self):
         original = self.sample()
@@ -131,12 +131,12 @@ class WordTemplateTests(unittest.TestCase):
             {'id': 'reg', 'kind': 'registry', 'name': 'Реестр', 'templateKey': b['id'], 'values': self.context(reg)},
             {'id': 'act', 'kind': 'html', 'name': 'Монтаж', 'type': 'АОСР', 'html': '<h2>Монтаж</h2>'}]}]}
         try:
-            with patch('pdf_export.convert_docx_batch', converter):
+            with patch('stroyid.application.exports.pdf.convert_docx_batch', converter):
                 prepared = prepare_export(store, plan)
             self.assertEqual(prepared['pages'], 4)  # one-page act receives its required empty back
             self.assertEqual(prepared['volumes'][0]['documents'][2]['start'], 3)
             self.assertTrue(any('Монтаж' in text and '3' in text for text in seen))
-            with patch('pdf_export.convert_docx_batch', side_effect=ValueError('Word не установлен')):
+            with patch('stroyid.application.exports.pdf.convert_docx_batch', side_effect=ValueError('Word не установлен')):
                 with self.assertRaisesRegex(ValueError, 'Word не установлен'):
                     prepare_export(store, plan)
             self.assertEqual(title.read_bytes(), store.asset_path(a['id'])[0].read_bytes())
@@ -151,7 +151,7 @@ class WordTemplateTests(unittest.TestCase):
             {'name': 'Титул', 'kind': 'word', 'templateKey': asset['id'], 'values': self.context(source)},
             {'name': 'Протокол', 'kind': 'pdf', 'key': ''}]}]}
         try:
-            with patch('pdf_export.convert_docx_batch') as converter:
+            with patch('stroyid.application.exports.pdf.convert_docx_batch') as converter:
                 with self.assertRaisesRegex(ValueError, 'Протокол'):
                     prepare_export(store, plan)
                 converter.assert_not_called()

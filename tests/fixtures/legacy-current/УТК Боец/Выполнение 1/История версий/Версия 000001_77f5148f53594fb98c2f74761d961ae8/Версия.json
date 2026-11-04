@@ -1,0 +1,22 @@
+{
+  "action": "edit",
+  "by": "ПК",
+  "files": [],
+  "id": "77f5148f53594fb98c2f74761d961ae8",
+  "number": 1,
+  "parents": [],
+  "pc": "ПК",
+  "record": {
+    "data": {
+      "date": "2026-10-12",
+      "id": "e1",
+      "name": "Выполнение 1"
+    },
+    "field": "executions",
+    "kind": "executions",
+    "parent": "projects:p",
+    "position": 0
+  },
+  "sourceVersion": null,
+  "ts": "2026-11-04T21:02:22.271820+00:00"
+}
