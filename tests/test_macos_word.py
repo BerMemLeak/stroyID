@@ -1,4 +1,6 @@
 """Mac Word jobs must preserve existing output on failure and safely pass paths."""
+from contextlib import nullcontext
+import os
 import io
 import json
 from pathlib import Path
@@ -26,6 +28,8 @@ class MacWordTests(unittest.TestCase):
             dst=self.root/f'готовый {i}.pdf';dst.write_bytes(b'old-result')
             self.jobs.append((src,dst))
         self.addCleanup(self.tmp.cleanup)
+        session=patch.object(mac,'word_session',return_value=nullcontext())
+        session.start();self.addCleanup(session.stop)
 
     def launch(self, output=None, error=None):
         def popen(args, **kwargs):
@@ -74,7 +78,19 @@ class MacWordTests(unittest.TestCase):
         with patch.object(word_templates.sys,'platform','darwin'),patch.object(mac,'word_application',return_value=Path('/Applications/Microsoft Word.app')), \
              patch.object(word_templates.subprocess,'Popen') as run:
             word_templates.open_in_word(self.jobs[0][0])
-        self.assertEqual(run.call_args.args[0],['/usr/bin/open','-a','/Applications/Microsoft Word.app',str(self.jobs[0][0].resolve())])
+        self.assertEqual(run.call_args.args[0],['/usr/bin/open','-a',str(Path('/Applications/Microsoft Word.app')),str(self.jobs[0][0].resolve())])
+
+
+@unittest.skipUnless(os.name=='posix','POSIX lock test')
+class MacWordSessionTests(unittest.TestCase):
+    def test_another_export_waits_and_failure_releases_the_session(self):
+        with tempfile.TemporaryDirectory() as folder,patch.object(mac.Path,'home',return_value=Path(folder)):
+            with mac.word_session(timeout=0):
+                with self.assertRaisesRegex(ValueError,'другой сборкой'):
+                    with mac.word_session(timeout=0):pass
+            with self.assertRaises(RuntimeError):
+                with mac.word_session(timeout=0):raise RuntimeError('conversion failed')
+            with mac.word_session(timeout=0):pass
 
 
 @unittest.skipUnless(sys.platform=='darwin','JXA interpreter requires macOS')

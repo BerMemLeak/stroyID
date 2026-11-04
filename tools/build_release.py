@@ -120,6 +120,8 @@ def build():
         command([sys.executable,'tests/smoke_history.py'],150,stage=report['stage'])
         report['stage'] = 'qt-frame-reference'
         command([sys.executable,'tests/smoke_frames.py'],120,stage=report['stage'])
+        report['stage'] = 'qt-navigation-and-preview'
+        command([sys.executable,'tests/smoke_navigation.py'],120,stage=report['stage'])
         if is_mac:
             report['stage'] = 'macos-word-integration'
             command([sys.executable, 'tests/smoke_word_macos.py', str(output/'word-macos-check.json')],

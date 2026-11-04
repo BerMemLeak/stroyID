@@ -10,6 +10,8 @@ from folder_store import Store
 from pdf_export import prepare_export, write_export
 APP=QApplication.instance() or QApplication([])
 
+# macOS fallback fonts can share the Cyrillic к and Latin kra glyph.
+# Compare the displayed Russian text after normalizing this PDF cmap alias.
 class DrawingFrameTests(unittest.TestCase):
  def test_ordered_signer_slots_and_empty_unused_cells(self):
   rows=[{'role':'Разработал','name':'Морозкин Е. Е.'}, {'role':'Проверил','name':'Щербак О. О.'}]
@@ -32,7 +34,7 @@ class DrawingFrameTests(unittest.TestCase):
     ['Разработал','Рук. проекта','Производ. работ','Строит. контр.','Строит. контр.','Утвердил'])]
    result=framed_reader(PdfReader(io.BytesIO(self.source())),[1],
     {'signerRows':rows,'values':{'Схема.Дата':'20.05.2025'}},Store(Path(tmp)/'db'))
-   text=''.join(result.pages[0].extract_text().split())
+   text=''.join(result.pages[0].extract_text().replace('ĸ','к').split())
    for i in range(6):self.assertIn('Участник'+str(i+1),text)
    self.assertEqual(text.count('Строит.контр.'),2)
    self.assertEqual(text.count('20.05.2025'),6)
@@ -74,7 +76,7 @@ class DrawingFrameTests(unittest.TestCase):
     'values':{'Схема.Номер':'АР-1.1','АОСР.Работы':'Разборка плинтусов','АОСР.МестоРабот':'ОБЩЕЕ-МЕСТО'}}
    result=framed_reader(reader,[2,0,1],cfg,store)
    for page,number,place in zip(result.pages,[3,1,2],['ЭТАЖ-ТРИ','','ЭТАЖ-ДВА']):
-    text=''.join(page.extract_text().split())
+    text=''.join(page.extract_text().replace('ĸ','к').split())
     expected='Исполнительнаясхема№АР-1.1.'+str(number)+'«Разборкаплинтусов'+place+'»'
     self.assertIn(expected,text);self.assertNotIn('ОБЩЕЕ-МЕСТО',text)
     if place:self.assertNotIn('ЭТАЖ-ДВА' if place=='ЭТАЖ-ТРИ' else 'ЭТАЖ-ТРИ',text)
@@ -88,7 +90,7 @@ class DrawingFrameTests(unittest.TestCase):
   custom='<svg xmlns="http://www.w3.org/2000/svg" width="{{Геометрия.Ширина}}mm" height="{{Геометрия.Высота}}mm" viewBox="0 0 {{Геометрия.Ширина}} {{Геометрия.Высота}}"></svg>'
   result=frame_page(page,{'captionEnabled':True,'sheetPlaces':{'1':'этаж 1'},
    'values':{'Схема.Номер':'АР-1','АОСР.Работы':'Работы'}},template=custom)
-  self.assertIn('Исполнительнаясхема№АР-1.1«Работыэтаж1»',''.join(result.extract_text().split()))
+  self.assertIn('Исполнительнаясхема№АР-1.1«Работыэтаж1»',''.join(result.extract_text().replace('ĸ','к').split()))
 
  def test_invalid_sheet_place_data_is_rejected(self):
   for places in ([],42,{'1':None},{'1':['этаж']}):
@@ -105,7 +107,7 @@ class DrawingFrameTests(unittest.TestCase):
    result=framed_reader(reader,[0,1,2,3],config,store)
    for page,(w,h) in zip(result.pages,[(210,297),(420,297),(420,297),(420,297)]):
     self.assertAlmostEqual(float(page.mediabox.width)/MM,w,places=3);self.assertAlmostEqual(float(page.mediabox.height)/MM,h,places=3);self.assertEqual(page.rotation,0)
-    text=''.join(page.extract_text().split());self.assertIn('АОСР-014',text);self.assertIn('ВК-001',text);self.assertIn('Жилойдом',text)
+    text=''.join(page.extract_text().replace('ĸ','к').split());self.assertIn('АОСР-014',text);self.assertIn('ВК-001',text);self.assertIn('Жилойдом',text)
    self.assertEqual(reader.pages[2].rotation,90);self.assertAlmostEqual(float(reader.pages[3].cropbox.left),10*MM,places=6)
  def test_real_preview_and_export_preserve_sizes(self):
   with tempfile.TemporaryDirectory() as tmp:
@@ -130,7 +132,7 @@ class DrawingFrameTests(unittest.TestCase):
    cfg={'fitContent':True,'values':{'АОСР.Номер':'ACT-42','Приложение.Номер':'2','АОСР.Дата':'18.10.2026','Схема.Стадия':'ИД'}}
    result=framed_reader(reader,[0,1,2],cfg,store)
    for i,page in enumerate(result.pages):
-    text=''.join(page.extract_text().split());self.assertIn('ACT-42',text);self.assertIn('18.10.2026',text)
+    text=''.join(page.extract_text().replace('ĸ','к').split());self.assertIn('ACT-42',text);self.assertIn('18.10.2026',text)
     found=[]
     page.extract_text(visitor_text=lambda text,cm,tm,*args:found.append((text,cm,tm)))
     original=[]
@@ -142,7 +144,7 @@ class DrawingFrameTests(unittest.TestCase):
     self.assertTrue(any(text.strip()=='3' for text,_,_ in found))
     self.assertTrue(any(text.strip()==str(i+1) for text,_,_ in found))
    selected=framed_reader(reader,[1],cfg,store)
-   text=''.join(selected.pages[0].extract_text().split());self.assertIn('ACT-42',text)
+   text=''.join(selected.pages[0].extract_text().replace('ĸ','к').split());self.assertIn('ACT-42',text)
    self.assertIn('3',text)  # Total is source PDF size even when exporting a range.
    self.assertNotIn('ACT-42',reader.pages[0].extract_text())
 
@@ -171,7 +173,7 @@ class DrawingFrameTests(unittest.TestCase):
       'Приложение.Номер':'7','Приложение.Дата':'"15" 09.2026г.'}}
    result=framed_reader(reader,[0,1,2],cfg,store)
    for page in result.pages:
-    text=''.join(page.extract_text().split())
+    text=''.join(page.extract_text().replace('ĸ','к').split())
     self.assertIn('Кразделу',text);self.assertIn('SECTION-042',text)
     self.assertIn('"15"09.2026г.',text);self.assertIn('Приложение№',text)
    self.assertNotIn('SECTION-042',reader.pages[0].extract_text())

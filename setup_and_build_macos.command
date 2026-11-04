@@ -27,6 +27,16 @@ done
 [ "$(uname -m)" = arm64 ] || { echo 'Нужен Apple Silicon. Откройте Terminal без режима Rosetta.'; exit 1; }
 MAC_MAJOR="$(sw_vers -productVersion | cut -d. -f1)"
 [ "$MAC_MAJOR" -ge 13 ] || { echo 'Требуется macOS 13 или новее.'; exit 1; }
+if ! /usr/bin/xcode-select -p >/dev/null 2>&1; then
+    echo 'Для упаковки нужны бесплатные Command Line Tools. Завершите их установку в системном окне.'
+    /usr/bin/xcode-select --install || true
+    attempts=0
+    until /usr/bin/xcode-select -p >/dev/null 2>&1 && /usr/bin/xcrun --find clang >/dev/null 2>&1; do
+        attempts=$((attempts + 1))
+        [ "$attempts" -le 360 ] || { echo 'Установка инструментов не завершена. Завершите её и повторите сборку.'; exit 1; }
+        sleep 5
+    done
+fi
 CHECK='import platform,sys; assert platform.machine()=="arm64" and sys.version_info[:2] in ((3,12),(3,13)); print(sys.executable)'
 BUILD_PYTHON=''
 for candidate in "${STROYID_BUILD_PYTHON:-}" "$(command -v python3.13 || true)" "$(command -v python3.12 || true)" \

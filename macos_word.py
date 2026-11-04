@@ -1,5 +1,6 @@
 """Microsoft Word for macOS automation. No UI scripting or global Word shutdown."""
 from __future__ import annotations
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -73,7 +74,7 @@ def _wait(process, timeout):
         raise
 
 
-def convert_docx_batch(jobs):
+def _convert_docx_batch(jobs):
     if not jobs:
         return
     word_application()
@@ -123,3 +124,33 @@ def convert_docx_batch(jobs):
                 os.replace(temporary, target)
             finally:
                 temporary.unlink(missing_ok=True)
+
+@contextmanager
+def word_session(timeout=180):
+    """Serialize Word automation across independent StroyID instances."""
+    import fcntl
+    root=Path.home()/'Library/Caches/StroyID'
+    root.mkdir(parents=True,exist_ok=True)
+    with (root/'word-export.lock').open('a+b') as lock:
+        end=time.monotonic()+timeout
+        while True:
+            try:
+                fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic()>=end:
+                    raise ValueError('Word занят другой сборкой СтройИД. Дождитесь её завершения и повторите экспорт.')
+                from PySide6.QtCore import QCoreApplication,QEventLoop
+                QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+                time.sleep(.04)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock,fcntl.LOCK_UN)
+
+
+def convert_docx_batch(jobs):
+    if not jobs:
+        return
+    with word_session():
+        return _convert_docx_batch(jobs)
