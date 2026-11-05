@@ -60,7 +60,7 @@ def receive(raw):
   assert [tuple(d['reader'].pages[d['selection'][0]].mediabox)[2:] for d in ranges]==[(210,297),(420,297)]
   output=write_export(prepared,root/'bundle.pdf',store);assert len(PdfReader(output['path']).pages)==output['pages']
   assert [d['sourceBlock'] for d in documents if d.get('ownerActId')]==['schemes','photos','quality']*2
-  stage=2;timer.stop();print('PASS: act bundles, selected ranges, profile ordering, preview, quality rules, exclusions, separate schemes, single act, native PDF');app.quit()
+  stage=2;timer.stop();print('PASS: act bundles, selected ranges, profile ordering, preview, quality rules, exclusions, separate schemes, single act, native PDF');app.exit(0)
  except Exception:fail(traceback.format_exc())
 def poll():
  if not stage:window.page.runJavaScript('window.desktopReady',ready)
