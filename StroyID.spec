@@ -7,7 +7,10 @@ a = Analysis([str(project / 'app.py')], pathex=[str(project / "src")],
                                  (str(project / 'README.md'), '.')],
              hiddenimports=['PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets',
                             'PySide6.QtWebChannel', 'PySide6.QtPdf', 'PySide6.QtPrintSupport'],
-             hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[], noarchive=False)
+             # The UI uses Qt Widgets and local HTML. Qt DLL dependencies are still
+             # collected, but importing QtQml would also bundle every QML plugin.
+             hookspath=[], hooksconfig={}, runtime_hooks=[],
+             excludes=['PySide6.QtQml'], noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name='StroyID',
           debug=False, bootloader_ignore_signals=False, strip=False, upx=False,

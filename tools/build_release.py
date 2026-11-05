@@ -1,4 +1,5 @@
 """Build and verify a single executable containing Python, Qt and the UI."""
+import argparse
 import hashlib
 import json
 import platform
@@ -26,6 +27,7 @@ def command(args, timeout=900, cwd=ROOT, stage='command', logs=None):
     log_path = logs / (stage + '.log')
     printable = subprocess.list2cmdline([str(x) for x in args])
     print('\nSTAGE: ' + stage + '\n> ' + printable + '\nLOG: ' + str(log_path), flush=True)
+    started = time.monotonic()
     try:
         # Save both streams directly: no dependence on PowerShell transcription.
         with log_path.open('wb') as stream:
@@ -39,6 +41,7 @@ def command(args, timeout=900, cwd=ROOT, stage='command', logs=None):
         if log_path.exists():
             lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()
             print('\n'.join(lines[-400:]), flush=True)
+        print(f'TIME: {stage}: {time.monotonic() - started:.1f} s', flush=True)
 
 
 def close_running_release(target):
@@ -75,12 +78,12 @@ def publish_executable(executable, target):
         temporary.unlink(missing_ok=True)
 
 
-def build():
+def build(*, quick=False):
     output = ROOT / 'release'
     output.mkdir(exist_ok=True)
     report = {'version': VERSION, 'platform': sys.platform, 'python': sys.version,
               'created': datetime.now(timezone.utc).isoformat(), 'passed': False, 'error': None,
-              'stage': 'initialization', 'returncode': None}
+              'stage': 'initialization', 'returncode': None, 'quick': quick}
     status = output / 'build-report.json'
     try:
         report['platform'] = platform.platform()
@@ -91,40 +94,30 @@ def build():
         command([sys.executable, 'tools/build_frontend.py'], stage='frontend')
         report['stage'] = 'unit-tests'
         command([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-v'], 120, stage=report['stage'])
-        report['stage'] = 'document-tags'
-        command([sys.executable, 'tests/smoke_document_tags.py'], 120, stage=report['stage'])
-        report['stage'] = 'qt-interface'
-        command([sys.executable, 'tests/smoke_qt.py'], 120, stage=report['stage'])
-        report['stage'] = 'qt-pdf-export'
-        command([sys.executable, 'tests/smoke_pdf.py'], 120, stage=report['stage'])
-        report['stage'] = 'qt-word-templates'
-        command([sys.executable, 'tests/smoke_word.py'], 120, stage=report['stage'])
-        report['stage'] = 'qt-aosr-quantities'
-        command([sys.executable, 'tests/smoke_quantities.py'], 150, stage=report['stage'])
-        report['stage']='qt-print-materials'
-        command([sys.executable, 'tests/smoke_print_materials.py'], 150, stage=report['stage'])
-        report['stage'] = 'qt-folder-workspace'
-        command([sys.executable, 'tests/smoke_folders.py'], 120, stage=report['stage'])
-        report['stage'] = 'qt-organization-role-picker'
-        command([sys.executable, 'tests/smoke_org_roles.py'], 120, stage=report['stage'])
-        report['stage'] = 'qt-executions-and-frames'
-        command([sys.executable, 'tests/smoke_executions.py'], 120, stage=report['stage'])
-        report['stage'] = 'qt-act-attachment-bundles'
-        command([sys.executable, 'tests/smoke_act_bundles.py'], 120, stage=report['stage'])
-        report['stage'] = 'qt-manual-save-and-idle'
-        command([sys.executable,'tests/smoke_manual.py'],150,stage=report['stage'])
-        report['stage'] = 'qt-local-regressions'
-        command([sys.executable,'tests/smoke_regressions.py'],150,stage=report['stage'])
-        report['stage'] = 'qt-save-locks'
-        command([sys.executable,'tests/smoke_save_locks.py'],150,stage=report['stage'])
-        report['stage'] = 'qt-document-workflow'
-        command([sys.executable,'tests/smoke_workflow.py'],120,stage=report['stage'])
-        report['stage'] = 'qt-snapshot'
-        command([sys.executable,'tests/smoke_snapshot.py'],150,stage=report['stage'])
-        report['stage'] = 'qt-frame-reference'
-        command([sys.executable,'tests/smoke_frames.py'],120,stage=report['stage'])
-        report['stage'] = 'qt-navigation-and-preview'
-        command([sys.executable,'tests/smoke_navigation.py'],120,stage=report['stage'])
+        smoke_checks = [
+            ('qt-word-templates', 'smoke_word.py', 120),
+        ] if quick else [
+            ('document-tags', 'smoke_document_tags.py', 120),
+            ('qt-interface', 'smoke_qt.py', 120),
+            ('qt-pdf-export', 'smoke_pdf.py', 120),
+            ('qt-word-templates', 'smoke_word.py', 120),
+            ('qt-aosr-quantities', 'smoke_quantities.py', 150),
+            ('qt-print-materials', 'smoke_print_materials.py', 150),
+            ('qt-folder-workspace', 'smoke_folders.py', 120),
+            ('qt-organization-role-picker', 'smoke_org_roles.py', 120),
+            ('qt-executions-and-frames', 'smoke_executions.py', 120),
+            ('qt-act-attachment-bundles', 'smoke_act_bundles.py', 120),
+            ('qt-manual-save-and-idle', 'smoke_manual.py', 150),
+            ('qt-local-regressions', 'smoke_regressions.py', 150),
+            ('qt-save-locks', 'smoke_save_locks.py', 150),
+            ('qt-document-workflow', 'smoke_workflow.py', 120),
+            ('qt-snapshot', 'smoke_snapshot.py', 150),
+            ('qt-frame-reference', 'smoke_frames.py', 120),
+            ('qt-navigation-and-preview', 'smoke_navigation.py', 120),
+        ]
+        for stage, script, timeout in smoke_checks:
+            report['stage'] = stage
+            command([sys.executable, 'tests/' + script], timeout, stage=stage)
         if is_mac:
             report['stage'] = 'macos-word-integration'
             command([sys.executable, 'tests/smoke_word_macos.py', str(output/'word-macos-check.json')],
@@ -133,7 +126,8 @@ def build():
             report['stage'] = 'macos-icon'
             command([sys.executable, 'tools/macos_release.py', 'icon'], 90, stage=report['stage'])
         report['stage'] = 'pyinstaller'
-        command([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean',
+        clean = [] if quick else ['--clean']
+        command([sys.executable, '-m', 'PyInstaller', '--noconfirm', *clean,
                  '--distpath', 'dist-macos' if is_mac else 'dist-onefile',
                  'StroyID-macos.spec' if is_mac else 'StroyID.spec'], stage=report['stage'])
         filename = 'StroyID.exe' if sys.platform == 'win32' else 'StroyID'
@@ -191,4 +185,9 @@ if __name__ == '__main__':
     for stream in (sys.stdout, sys.stderr):
         if stream is not None and hasattr(stream, 'reconfigure'):
             stream.reconfigure(encoding='utf-8', errors='backslashreplace')
-    sys.exit(build())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--quick', action='store_true', help='Run the local Windows check set')
+    args = parser.parse_args()
+    if args.quick and sys.platform != 'win32':
+        parser.error('--quick is for Windows builds')
+    sys.exit(build(quick=args.quick))

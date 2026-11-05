@@ -6,6 +6,13 @@ import os
 import sys
 import hashlib
 from pathlib import Path
+# CI already exercises WebEngine without GPU acceleration. Match that mode
+# on Windows, where a failed Chromium GPU process can leave the view blank.
+if sys.platform == "win32":
+    flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "")
+    if "--disable-gpu" not in flags.split():
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (flags + " --disable-gpu").strip()
+
 from PySide6.QtCore import (
     QCoreApplication,
     QEvent,
@@ -16,7 +23,10 @@ from PySide6.QtCore import (
     QSettings,
 )
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
+from PySide6.QtWidgets import (
+    QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox, QPushButton,
+    QStackedWidget, QVBoxLayout, QWidget,
+)
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -55,7 +65,20 @@ class Window(QMainWindow):
         self.resize(1440, 930)
         self.setMinimumSize(950, 650)
         self.view = QWebEngineView(self)
-        self.setCentralWidget(self.view)
+        self.screens = QStackedWidget(self)
+        self.screens.addWidget(self.view)
+        recovery = QWidget(self.screens)
+        layout = QVBoxLayout(recovery)
+        self.interface_status = QLabel()
+        self.interface_status.setWordWrap(True)
+        self.retry_interface = QPushButton("Открыть интерфейс заново")
+        self.retry_interface.clicked.connect(self.load_interface)
+        layout.addStretch()
+        layout.addWidget(self.interface_status)
+        layout.addWidget(self.retry_interface)
+        layout.addStretch()
+        self.screens.addWidget(recovery)
+        self.setCentralWidget(self.screens)
         self.next_root = None
         if test_profile:
             # Chromium may keep disk-cache files open after Qt window teardown on Windows.
@@ -79,6 +102,7 @@ class Window(QMainWindow):
         self.page = LocalPage(self.profile, ui_url, self.view)
         self.view.setPage(self.page)
         self.page.renderProcessTerminated.connect(self.renderer_stopped)
+        self.view.loadFinished.connect(self.interface_loaded)
         self.bridge = Bridge(store, self)
         self.setWindowIcon(QIcon(str(UI_ROOT / "stroyid.ico")))
         self.channel = QWebChannel(self.page)
@@ -99,7 +123,31 @@ class Window(QMainWindow):
                 lambda checked=False, script=js: self.page.runJavaScript(script)
             )
             menu.addAction(action)
-        self.view.setUrl(ui_url)
+        self.load_interface()
+
+    def load_interface(self):
+        self.renderer_terminated = False
+        self.interface_status.setText("Открывается интерфейс СтройИД…")
+        self.retry_interface.hide()
+        self.screens.setCurrentIndex(1)
+        if self.view.url() == self.page.ui_url:
+            self.view.reload()
+        else:
+            self.view.setUrl(self.page.ui_url)
+
+    def interface_loaded(self, success):
+        if success and not self.renderer_terminated:
+            self.screens.setCurrentWidget(self.view)
+        elif not self.renderer_terminated:
+            self.interface_failed("Не удалось загрузить интерфейс СтройИД.")
+
+    def interface_failed(self, message):
+        self.renderer_terminated = True
+        self.interface_status.setText(message)
+        self.retry_interface.show()
+        self.screens.setCurrentIndex(1)
+        if self.closing and self.close_timer.isActive():
+            self.close_timeout()
 
     def download(self, request):
         name = Path(request.suggestedFileName()).name or "document.html"
@@ -126,9 +174,10 @@ class Window(QMainWindow):
                 self.bridge.flushRequested.emit()
 
     def renderer_stopped(self, status, exit_code):
-        self.renderer_terminated = True
-        if self.closing and self.close_timer.isActive():
-            self.close_timeout()
+        self.interface_failed(
+            f"Интерфейс СтройИД остановился (код {exit_code}). "
+            "После повторного открытия будут загружены сохранённые данные."
+        )
 
     def close_timeout(self):
         if not self.closing:
