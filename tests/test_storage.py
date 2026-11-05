@@ -1,5 +1,6 @@
 import copy,json,shutil,tempfile,unittest,zipfile,hashlib,sqlite3
 from pathlib import Path
+from unittest.mock import patch
 from stroyid.infrastructure.storage import Store,encode
 
 def state(name='Объект'):return {'meta':{'v':30,'name':name},'projects':[],'ui':{},'locks':{},'lib':{k:[] for k in ('orgs','people','orders','base','profiles','templates')}}
@@ -31,7 +32,30 @@ class StorageTests(unittest.TestCase):
  def test_rename_moves_documents_and_card(self):
   s=self.init();old=self.store.path(self.store.paths['base:m1']);(old.parent/'Паспорт.pdf').write_bytes(b'one');s=self.store.load()['state'];s['lib']['base'][0]['name']='Насос';r=self.store.save(s,0);d=r['state']['lib']['base'][0]['docs'][0];p,_=self.store.asset_path(d['fileKey']);self.assertIn('Насос',str(p));self.assertEqual(p.read_bytes(),b'one');self.assertFalse(old.exists())
  def test_legacy_sqlite_migration(self):
-  root=self.root/'legacy';root.mkdir();db=sqlite3.connect(root/'stroiid.sqlite3');db.executescript('CREATE TABLE workspace(id INTEGER,payload TEXT);CREATE TABLE assets(id TEXT,name TEXT);');db.execute('INSERT INTO workspace VALUES(1,?)',(json.dumps(state('Прежняя база')),));db.commit();db.close();st=Store(root);self.assertEqual(st.load()['state']['meta']['name'],'Прежняя база');self.assertFalse(st.load()['warnings'])
+  root = self.root / 'legacy'
+  root.mkdir()
+  legacy = root / 'stroiid.sqlite3'
+  db = sqlite3.connect(legacy)
+  try:
+   db.executescript('CREATE TABLE workspace(id INTEGER,payload TEXT);CREATE TABLE assets(id TEXT,name TEXT);')
+   db.execute('INSERT INTO workspace VALUES(1,?)', (json.dumps(state('Прежняя база')),))
+   db.commit()
+  finally:
+   db.close()
+
+  # Retain the connection so SQLite cannot close it through garbage collection.
+  reader = sqlite3.connect(legacy.as_uri() + '?mode=ro', uri=True)
+  try:
+   with patch('stroyid.infrastructure.storage.legacy.sqlite3.connect', return_value=reader):
+    store = Store(root)
+   with self.assertRaises(sqlite3.ProgrammingError):
+    reader.execute('SELECT 1')
+   self.assertFalse(legacy.exists())
+   loaded = store.load()
+   self.assertEqual(loaded['state']['meta']['name'], 'Прежняя база')
+   self.assertFalse(loaded['warnings'])
+  finally:
+   reader.close()
 
  def test_shared_material_references_single_library_file(self):
   s=self.init();f=self.root/'Паспорт трубы.pdf';f.write_bytes(b'original');a=self.store.import_file(f)

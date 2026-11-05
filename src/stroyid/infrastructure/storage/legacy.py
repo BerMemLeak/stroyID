@@ -3,6 +3,7 @@
 import copy
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from .records import digest, portable_path, validate_state
 from .codec import CardCodec
@@ -63,7 +64,7 @@ def read_legacy(root: Path):
         return state, records, paths, history_roots
     sqlite = root / "stroiid.sqlite3"
     if sqlite.is_file():
-        with sqlite3.connect(sqlite.as_uri() + "?mode=ro", uri=True) as connection:
+        with closing(sqlite3.connect(sqlite.as_uri() + "?mode=ro", uri=True)) as connection:
             row = connection.execute("SELECT payload FROM workspace WHERE id=1").fetchone()
             state = validate_state(json.loads(row[0]))
             mapping = {
