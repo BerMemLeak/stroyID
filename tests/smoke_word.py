@@ -5,6 +5,7 @@ import html
 import json
 import sys
 import tempfile
+import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import patch
@@ -52,6 +53,16 @@ def fake_word_converter(jobs):
 window = Window(store, test_profile=True)
 window.resize(1600, 1000)
 window.show()
+reference_template = window.bridge.commands.handle_referenceTemplate
+
+
+def create_reference_in_worker(params, operation):
+    if threading.current_thread() is threading.main_thread():
+        raise AssertionError("Registry sample ran on the window thread")
+    return reference_template(params, operation)
+
+
+window.bridge.commands.handlers['referenceTemplate'] = create_reference_in_worker
 stage, errors = 0, []
 
 
@@ -92,6 +103,18 @@ def ready(value):
       a.scan={file:'',pages:0};save();await desktopFlush(true);
       history.replaceState(null,'','#/build/'+p.id+'/'+vol.key);render();const result=await A.downloadAssemblyPdf({all:'1'});if(!result)throw Error(document.querySelector('#modal-root').innerText);
       closeModal();S.ui.wordObject=p.id;S.ui.wordProfile=s.subprofiles[0].profileId;S.ui.wordOpen={aosr:true};go('#/lib/templates');render();save();await desktopFlush(true);
+      S.ui.wordOpen.reg=true;render();
+      const samplesBefore=S.lib.templates.length;
+      const sampleButton=document.querySelector('[data-a="wordSample"][data-section="reg"]');
+      sampleButton.click();
+      sampleButton.click();
+      for(let i=0;i<100&&(S.lib.templates.length===samplesBefore||desktopDirty||desktopSaving);i++)
+        await new Promise(resolve=>setTimeout(resolve,50));
+      const sample=S.lib.templates.at(-1);
+      if(S.lib.templates.length!==samplesBefore+1||sample.section!=='reg'||!sample.tags.includes('Реестр.ИтогоСтраниц'))
+        throw Error('Registry sample was not saved');
+      if(!document.querySelector('[data-word-section="reg"] [data-a="wordOpen"][data-id="'+sample.id+'"]'))
+        throw Error('Registry sample is not available in the interface');
       await A.wordSample({section:'spj'});if(!S.lib.templates.at(-1).fileKey)throw Error('Example DOCX not created');
       window.portableWordState=JSON.parse(JSON.stringify(S));
       window.wordSmokeResult=JSON.stringify({ok:true,pages:result.pages,basic:basic.id,profile:profile.id});

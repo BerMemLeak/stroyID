@@ -47,6 +47,10 @@ class Window(QMainWindow):
         super().__init__()
         self.store = store
         self.closing = self.allow_close = False
+        self.renderer_terminated = False
+        self.close_timer = QTimer(self)
+        self.close_timer.setSingleShot(True)
+        self.close_timer.timeout.connect(self.close_timeout)
         self.setWindowTitle("СтройИД")
         self.resize(1440, 930)
         self.setMinimumSize(950, 650)
@@ -74,6 +78,7 @@ class Window(QMainWindow):
         ui_url = QUrl.fromLocalFile(str(UI_ROOT / "index.html"))
         self.page = LocalPage(self.profile, ui_url, self.view)
         self.view.setPage(self.page)
+        self.page.renderProcessTerminated.connect(self.renderer_stopped)
         self.bridge = Bridge(store, self)
         self.setWindowIcon(QIcon(str(UI_ROOT / "stroyid.ico")))
         self.channel = QWebChannel(self.page)
@@ -114,17 +119,34 @@ class Window(QMainWindow):
         event.ignore()
         if not self.closing:
             self.closing = True
-            self.bridge.flushRequested.emit()
-            QTimer.singleShot(45000, self.close_timeout)
+            if self.renderer_terminated:
+                QTimer.singleShot(0, self.close_timeout)
+            else:
+                self.close_timer.start(45000)
+                self.bridge.flushRequested.emit()
+
+    def renderer_stopped(self, status, exit_code):
+        self.renderer_terminated = True
+        if self.closing and self.close_timer.isActive():
+            self.close_timeout()
 
     def close_timeout(self):
+        if not self.closing:
+            return
+        self.close_timer.stop()
+        choice = QMessageBox.question(
+            self,
+            "Интерфейс СтройИД не отвечает",
+            "Сохранение не подтверждено. Закрыть приложение? "
+            "Несохранённые изменения могут быть потеряны.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
         if self.closing:
             self.closing = False
-            QMessageBox.warning(
-                self,
-                "Сохранение не завершено",
-                "Окно осталось открытым. Повторите попытку закрытия после сохранения.",
-            )
+            if choice == QMessageBox.StandardButton.Yes:
+                self.allow_close = True
+                self.close()
 
 
 def dispose_window(window):

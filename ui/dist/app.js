@@ -7832,6 +7832,8 @@ const desktopAsyncOps = new Set([
   "trashRestore",
   "trashPurge",
   "recoverMissing",
+  "sampleDocx",
+  "referenceTemplate",
 ]);
 let desktopRequestId = 0;
 const desktopReplies = new Map();
@@ -11100,11 +11102,14 @@ A.wordPreview = async (d) => {
     ]);
   }
 };
+let creatingWordSample = false;
 A.wordSample = async (d) => {
-  if (!guard("lib")) return;
+  if (creatingWordSample || desktopClosing || !guard("lib")) return;
+  creatingWordSample = true;
   try {
     const section = WORD_SECTIONS.find((x) => x[0] === d.section);
     if (!section) return;
+    toast("Создаётся образец Word…");
     const f = await desktopTrack(
       ["title", "reg"].includes(section[0])
         ? nativeCall("referenceTemplate", { section: section[0] })
@@ -11126,7 +11131,9 @@ A.wordSample = async (d) => {
     await desktopFlush();
     toast("Образец создан. Откройте в Word и настройте оформление.");
   } catch (e) {
-    toast(e.message);
+    toast("Не удалось создать образец: " + e.message);
+  } finally {
+    creatingWordSample = false;
   }
 };
 A.wordDelete = (d) => {

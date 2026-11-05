@@ -20,6 +20,8 @@ const desktopAsyncOps = new Set([
   "trashRestore",
   "trashPurge",
   "recoverMissing",
+  "sampleDocx",
+  "referenceTemplate",
 ]);
 let desktopRequestId = 0;
 const desktopReplies = new Map();
