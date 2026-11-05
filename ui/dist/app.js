@@ -7835,6 +7835,8 @@ const desktopAsyncOps = new Set([
   "sampleDocx",
   "referenceTemplate",
 ]);
+// A previous renderer can still have a request in the native worker queue.
+const desktopSessionId = crypto.randomUUID();
 let desktopRequestId = 0;
 const desktopReplies = new Map();
 function nativeCall(op, params = {}) {
@@ -7853,7 +7855,7 @@ function nativeCall(op, params = {}) {
       }
     };
     if (desktop.requestAsync && desktopAsyncOps.has(op)) {
-      const id = String(++desktopRequestId);
+      const id = desktopSessionId + ":" + ++desktopRequestId;
       desktopReplies.set(id, receive);
       desktop.requestAsync(id, op, JSON.stringify(params));
     } else desktop.request(op, JSON.stringify(params), receive);

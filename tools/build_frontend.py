@@ -34,6 +34,6 @@ if __name__ == "__main__":
     if "--check" in sys.argv:
         if not target.exists() or target.read_text("utf-8") != content:
             raise SystemExit("UI bundle is outdated. Run python tools/build_frontend.py")
-    else:
+    elif not target.exists() or target.read_bytes() != content.encode("utf-8"):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8", newline="\n")
