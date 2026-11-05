@@ -5,7 +5,6 @@ import html
 import json
 import sys
 import tempfile
-import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import patch
@@ -13,10 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfReader
-from stroyid.presentation.desktop.window import Window, dispose_window
-from stroyid.infrastructure.storage import Store
-from stroyid.infrastructure.documents.word_templates import sample_docx, package, inspect_docx
-from stroyid.application.exports.pdf import render_html
+from app import Window, dispose_window
+from storage import Store
+from word_templates import sample_docx, package, inspect_docx
+from pdf_export import render_html
 from pdf_text import page_text
 
 application = QApplication.instance() or QApplication([])
@@ -53,16 +52,6 @@ def fake_word_converter(jobs):
 window = Window(store, test_profile=True)
 window.resize(1600, 1000)
 window.show()
-reference_template = window.bridge.commands.handle_referenceTemplate
-
-
-def create_reference_in_worker(params, operation):
-    if threading.current_thread() is threading.main_thread():
-        raise AssertionError("Registry sample ran on the window thread")
-    return reference_template(params, operation)
-
-
-window.bridge.commands.handlers['referenceTemplate'] = create_reference_in_worker
 stage, errors = 0, []
 
 
@@ -103,21 +92,9 @@ def ready(value):
       a.scan={file:'',pages:0};save();await desktopFlush(true);
       history.replaceState(null,'','#/build/'+p.id+'/'+vol.key);render();const result=await A.downloadAssemblyPdf({all:'1'});if(!result)throw Error(document.querySelector('#modal-root').innerText);
       closeModal();S.ui.wordObject=p.id;S.ui.wordProfile=s.subprofiles[0].profileId;S.ui.wordOpen={aosr:true};go('#/lib/templates');render();save();await desktopFlush(true);
-      S.ui.wordOpen.reg=true;render();
-      const samplesBefore=S.lib.templates.length;
-      const sampleButton=document.querySelector('[data-a="wordSample"][data-section="reg"]');
-      sampleButton.click();
-      sampleButton.click();
-      for(let i=0;i<100&&S.lib.templates.length===samplesBefore;i++)
-        await new Promise(resolve=>setTimeout(resolve,50));
-      const sample=S.lib.templates.at(-1);
-      if(S.lib.templates.length!==samplesBefore+1||sample.section!=='reg'||!sample.tags.includes('Реестр.ИтогоСтраниц'))
-        throw Error('Registry sample was not saved');
-      if(!document.querySelector('[data-word-section="reg"] [data-a="wordOpen"][data-id="'+sample.id+'"]'))
-        throw Error('Registry sample is not available in the interface');
-      await A.wordSample({section:'spj'});if(!S.lib.templates.at(-1).fileKey)throw Error('Example DOCX not created');await A.desktopSave();
-      window.portableWordState=JSON.parse(JSON.stringify(S));
-      window.wordSmokeResult=JSON.stringify({ok:true,pages:result.pages,basic:basic.id,profile:profile.id});
+      await A.wordSample({section:'spj'});if(!S.lib.templates.at(-1).fileKey)throw Error('Example DOCX not created');
+      const backup=await nativeCall('backup',{reason:'Word test',state:S});
+      window.wordSmokeResult=JSON.stringify({ok:true,pages:result.pages,backup:backup.path,basic:basic.id,profile:profile.id});
     }catch(e){window.wordSmokeResult=JSON.stringify({ok:false,error:e.stack});}})();'''.replace('SIGNED', json.dumps(signed_asset))
     window.page.runJavaScript(script)
 
@@ -144,11 +121,8 @@ def finished(value):
         restored = Store(root / 'restored')
         try:
             archive = root / 'transfer.zip'
-            store.portable_export(store.load()['state'], archive)
-            import zipfile
-            with zipfile.ZipFile(archive) as archive_content:archive_content.extractall(root/'unpacked')
-            restored = Store(root/'unpacked/СтройИД')
-            loaded = restored.load()['state']
+            store.export_backup(Path(result['backup']).name, archive)
+            loaded = restored.restore(archive)['state']
             assert loaded['projects'][0]['wordTemplates']['aosr'] == result['basic']
             assert loaded['projects'][1]['wordTemplates'] == {}
             for t in loaded['lib']['templates']:
@@ -160,7 +134,7 @@ def finished(value):
         window.page.runJavaScript("document.querySelector('#toast').innerHTML='';document.querySelector('[data-word-section=\"aosr\"]').scrollIntoView({block:'center'})")
         QTimer.singleShot(200, capture_and_close)
         stage = 2
-        print('PASS: DOCX import, Word opening, filled preview, document sections and HTML frame, object/profile isolation, signed-PDF priority, full PDF with Word forms and registry, DOCX portable snapshot')
+        print('PASS: DOCX import, Word opening, filled preview, document sections and HTML frame, object/profile isolation, signed-PDF priority, full PDF with Word forms and registry, DOCX backup/restore')
     except Exception as exc:
         fail(exc)
 
@@ -182,10 +156,10 @@ timer = QTimer()
 timer.timeout.connect(poll)
 timer.start(150)
 QTimer.singleShot(60000, lambda: fail('Word UI test timed out'))
-with patch('stroyid.presentation.desktop.window.QFileDialog.getOpenFileName', side_effect=[(str(x), 'DOCX') for x in (act, profile_act, title, reg)]), \
-     patch('stroyid.presentation.desktop.window.QFileDialog.getSaveFileName', return_value=(str(output), 'PDF')), \
-     patch('stroyid.infrastructure.documents.word_templates.open_in_word', side_effect=fake_word_open), \
-     patch('stroyid.application.exports.pdf.convert_docx_batch', side_effect=fake_word_converter):
+with patch('app.QFileDialog.getOpenFileName', side_effect=[(str(x), 'DOCX') for x in (act, profile_act, title, reg)]), \
+     patch('app.QFileDialog.getSaveFileName', return_value=(str(output), 'PDF')), \
+     patch('word_templates.open_in_word', side_effect=fake_word_open), \
+     patch('pdf_export.convert_docx_batch', side_effect=fake_word_converter):
     code = application.exec()
 dispose_window(window)
 store.close()

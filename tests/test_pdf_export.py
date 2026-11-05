@@ -6,8 +6,8 @@ from pathlib import Path
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen') if os.name != 'nt' else None
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfReader, PdfWriter
-from stroyid.infrastructure.storage import Store
-from stroyid.application.exports.pdf import prepare_export, render_html, write_export
+from storage import Store
+from pdf_export import prepare_export, render_html, write_export
 from pdf_text import page_text
 
 
@@ -65,7 +65,7 @@ class PdfExportTests(unittest.TestCase):
 
     def test_shared_pdf_is_parsed_once_and_ranges_stay_independent(self):
         from unittest.mock import patch
-        import stroyid.application.exports.pdf as pdf_export
+        import pdf_export
         plan={'volumes':[{'title':'Том','documents':[
             {'kind':'pdf','id':'first','name':'Первый акт','key':self.asset['id'],'from':1,'to':1},
             {'kind':'pdf','id':'second','name':'Второй акт','key':self.asset['id'],'from':2,'to':3}]}]}
@@ -102,27 +102,6 @@ class PdfExportTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 prepare_export(self.store, {'volumes': [{'title': 'Том', 'documents': [
                     {'kind': 'pdf', 'name': name, 'key': key}]}]})
-
-    def test_default_registry_lists_itself_and_excludes_title_from_total(self):
-        docs = [
-            {'id': 'title', 'kind': 'html', 'name': 'Титульный лист', 'html': '<p>Титул</p>'},
-            {'id': 'reg', 'kind': 'registry', 'referenceLayout': True, 'name': 'Реестр',
-             'values': {'Объект.Наименование': 'Проверочный объект'}},
-        ]
-        docs.extend(
-            {'kind': 'pdf', 'key': self.asset['id'], 'from': 1, 'to': 1,
-             'name': f'Документ {n}', 'nd': f'№ {n}'}
-            for n in range(105)
-        )
-        prepared = prepare_export(self.store, {'volumes': [{'documents': docs}]})
-        registry = prepared['volumes'][0]['documents'][1]
-        self.assertGreater(registry['count'], 1)
-        pages = [page_text(page) for page in registry['reader'].pages]
-        content = ' '.join(' '.join(pages).split())
-        self.assertIn('Проверочный объект', content)
-        self.assertNotIn('Титульный лист', content)
-        self.assertLess(content.index('Реестр исполнительной документации'), content.index('Документ 0'))
-        self.assertIn(f'ИТОГО СТРАНИЦ ПО РЕЕСТРУ: {105 + registry["count"]}', content)
 
     def test_long_registry_converges_and_global_ranges_match(self):
         docs = [{'kind': 'html', 'name': 'Титульный', 'html': '<h2>Титульный лист</h2>'},

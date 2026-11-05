@@ -5,8 +5,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfWriter
-from stroyid.presentation.desktop.window import Window,dispose_window
-from stroyid.infrastructure.storage import Store
+from app import Window,dispose_window
+from storage import Store
 app=QApplication([]);temp=tempfile.TemporaryDirectory();root=Path(temp.name);store=Store(root/'data')
 w=PdfWriter();w.add_blank_page(1191,842);w.add_blank_page(1191,842);w.write(root/'source.pdf');asset=store.import_file(root/'source.pdf')
 window=Window(store,test_profile=True);window.show();stage=0;errors=[]
@@ -32,9 +32,8 @@ def ready(value):
   if(op==='previewDrawing')return new Promise(resolve=>pending.push({params,resolve}));
   return native(op,params);
  };
- const backSave=async()=>{const leaving=A.navigationBack();document.querySelector('.dlg .df .pri').click();await leaving;};
- await backSave();assert(location.hash==='#/a/'+a.id,'Failed save navigated away');assert(a.works===input.value,'Failed save lost input');closeModal();
- failSave=false;await backSave();await until(()=>location.hash==='#/s/'+s.id+'/acts');
+ await A.navigationBack();assert(location.hash==='#/a/'+a.id,'Failed save navigated away');assert(a.works===input.value,'Failed save lost input');closeModal();
+ failSave=false;await A.navigationBack();await until(()=>location.hash==='#/s/'+s.id+'/acts');
  const saved=await native('load');assert(saved.state.projects[0].systems[0].acts[0].works==='Работы сохраняются при возврате','Back did not save draft');
  await visit('#/s/'+s.id+'/scheme');
  assert(document.querySelector('#content #drawing-result'),'Background drawing panel missing');
@@ -55,7 +54,7 @@ def ready(value):
  pending[2].resolve({width:420,height:297,pages:2,image:image+'#page2'});await three;
  assert(q('#drawing-preview-status').textContent==='Предпросмотр обновлён.','Refresh success not shown');
  assert(!document.querySelector('#content .frame-preview'),'Modal refresh changed background preview');
- closeModal();nativeCall=native;await A.desktopSave();
+ closeModal();nativeCall=native;
  history.replaceState(null,'','#/a/'+a.id);manualAcceptedHash=location.hash;navigationEntries=[location.hash];navigationIndex=0;render();
  await A.navigationBack();await until(()=>location.hash==='#/s/'+s.id+'/acts');
  await A.navigationBack();await until(()=>location.hash==='#/p/'+p.id);

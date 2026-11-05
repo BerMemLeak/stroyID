@@ -1,10 +1,10 @@
 """Directory subscriptions must detect file edits without holding target files."""
-import tempfile,unittest,json
+import tempfile,unittest
 from pathlib import Path
 from PySide6.QtCore import QObject,QCoreApplication,QEvent,QEventLoop,QTimer
 from PySide6.QtWidgets import QApplication
-from stroyid.presentation.desktop.window import Bridge
-from stroyid.infrastructure.storage import Store
+from app import Bridge
+from folder_store import Store
 from test_storage import state,material
 
 class DirectoryWatcher(unittest.TestCase):
@@ -20,15 +20,6 @@ class DirectoryWatcher(unittest.TestCase):
  def test_only_directories_are_registered_in_native_watcher(self):
   self.assertEqual(self.bridge.watcher.files(),[]);self.assertTrue(self.bridge.watcher.directories());self.assertTrue(all(Path(p).is_dir() for p in self.bridge.watcher.directories()))
   card=self.store.path(self.store.paths['base:m1']);self.assertIn(str(card),self.bridge.observedPaths);self.assertIn(card.parent.resolve(),{Path(p).resolve() for p in self.bridge.watcher.directories()})
- def test_rename_releases_old_project_watchers_and_restores_them_on_failed_save(self):
-  from test_workspace_v8 import project
-  saved=self.store.load()['state'];saved['projects']=[project()];saved=self.store.save(saved,self.store.revision)['state']
-  self.bridge.refresh_watches();old=self.store.path(self.store.paths['projects:p']).parent
-  self.assertTrue(any(Path(p).is_relative_to(old) for p in self.bridge.watcher.directories()))
-  saved['projects'][0]['name']='Новое имя';self.bridge.release_renamed_project_watches('rename-test',saved)
-  self.assertFalse(any(Path(p).is_relative_to(old) for p in self.bridge.watcher.directories()))
-  self.bridge.refresh_watches('rename-test',json.dumps({'ok':False,'error':'save failed'}))
-  self.assertTrue(any(Path(p).is_relative_to(old) for p in self.bridge.watcher.directories()))
  def test_in_place_card_edit_is_detected_and_deduplicated(self):
   card=self.store.path(self.store.paths['base:m1']);self.bridge.observedPaths={str(card)};self.bridge.watchStamp=self.bridge.watch_fingerprint();received=[];self.bridge.folderChanged.connect(lambda:received.append(True))
   with card.open('ab') as stream:stream.write(b'\n')

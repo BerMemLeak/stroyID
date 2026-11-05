@@ -5,8 +5,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QEventLoop,QPoint,QTimer,Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
-from stroyid.presentation.desktop.window import Window,dispose_window
-from stroyid.infrastructure.storage import Store
+from app import Window,dispose_window
+from folder_store import Store
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();store=Store(Path(tmp.name)/'database')
 window=Window(store,test_profile=True);window.show();stage=0;errors=[]
 def fail(error):errors.append(str(error));app.exit(1)

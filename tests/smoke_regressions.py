@@ -6,9 +6,9 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 from pypdf import PdfWriter
-from stroyid.presentation.desktop.window import Window,dispose_window
-from stroyid.infrastructure.storage import Store
-from stroyid.application.exports.pdf import prepare_export,write_export,ExportSourceError
+from app import Window,dispose_window
+from folder_store import Store
+from pdf_export import prepare_export,write_export,ExportSourceError
 app=QApplication([]);temp=tempfile.TemporaryDirectory();root=Path(temp.name)
 if '--workspace' in sys.argv:
  source=Path(sys.argv[sys.argv.index('--workspace')+1]);shutil.copytree(source,root/'base')
@@ -97,7 +97,7 @@ def poll():
  if not stage:window.page.runJavaScript('window.desktopReady',started)
  elif stage==1:window.page.runJavaScript('window.regressionResult?JSON.stringify(window.regressionResult):null',receive)
 timer=QTimer();timer.timeout.connect(poll);timer.start(150);QTimer.singleShot(90000,lambda:fail('regression timeout'))
-with patch('stroyid.presentation.desktop.window.QFileDialog.getOpenFileName',return_value=(str(pdf),'PDF')):code=app.exec()
+with patch('app.QFileDialog.getOpenFileName',return_value=(str(pdf),'PDF')):code=app.exec()
 timer.stop();dispose_window(window);store.close()
 if code==0:
  reopened=Store(root/'base');r=reopened.load();assert not r['warnings'],r['warnings'];assert not r['conflicts'];assert not any(x['id'].startswith('reg-person-') for x in r['state']['lib']['people']);reopened.close();print('PASS reopen after all operations, no corrupt cards')

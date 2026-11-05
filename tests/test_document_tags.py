@@ -1,8 +1,8 @@
 """Schema coverage and native replacement contracts independent of UI wiring."""
 import tempfile,unittest,xml.etree.ElementTree as ET,zipfile
 from pathlib import Path
-from stroyid.domain.document_tags import schema,collection_tags
-from stroyid.infrastructure.documents.word_templates import sample_docx,inspect_docx,fill_docx,package,W
+from document_tags import schema,collection_tags
+from word_templates import sample_docx,inspect_docx,fill_docx,package,W
 ROOT=Path(__file__).resolve().parents[1]
 class DocumentTagTests(unittest.TestCase):
  def test_all_builtin_and_sample_tags_have_one_definition(self):
@@ -14,10 +14,10 @@ class DocumentTagTests(unittest.TestCase):
    for p in paths:
     tags=inspect_docx(p.read_bytes())['tags']
     self.assertFalse(set(tags)-fields.keys(),(p,set(tags)-fields.keys()))
-    values={t:'MARK-'+t for t in tags if t not in collection_tags() and t != 'Комплект.Логотип'}
-    out=fill_docx(p.read_bytes(),Path(tmp)/'filled.docx',{**values,'Комплект.Логотип':''},{})
+    values={t:'MARK-'+t for t in tags if t not in collection_tags()}
+    out=fill_docx(p.read_bytes(),Path(tmp)/'filled.docx',values,{})
     self.assertFalse(inspect_docx(out.read_bytes())['tags'],p)
-    text=''.join(''.join(ET.fromstring(b).itertext()) for n,b in package(out.read_bytes()).items() if __import__('stroyid.infrastructure.documents.word_templates',fromlist=['*']).PART.match(n))
+    text=''.join(''.join(ET.fromstring(b).itertext()) for n,b in package(out.read_bytes()).items() if __import__('word_templates').PART.match(n))
     for t,v in values.items():self.assertIn(v,text,(p,t))
  def test_required_and_optional_are_distinct(self):
   with tempfile.TemporaryDirectory() as tmp:

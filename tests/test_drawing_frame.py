@@ -5,9 +5,9 @@ from pathlib import Path
 from pypdf import PdfWriter, PdfReader
 from pypdf.generic import RectangleObject
 from PySide6.QtWidgets import QApplication
-from stroyid.infrastructure.documents.drawing_frame import framed_reader, template_svg, preview, frame_signer_values, frame_sheet_values, MM
-from stroyid.infrastructure.storage import Store
-from stroyid.application.exports.pdf import prepare_export, write_export
+from drawing_frame import framed_reader, template_svg, preview, frame_signer_values, frame_sheet_values, MM
+from folder_store import Store
+from pdf_export import prepare_export, write_export
 APP=QApplication.instance() or QApplication([])
 
 # macOS fallback fonts can share the Cyrillic к and Latin kra glyph.
@@ -15,13 +15,13 @@ APP=QApplication.instance() or QApplication([])
 class DrawingFrameTests(unittest.TestCase):
  def test_saved_centre_caption_moves_to_top_without_changing_other_template_parts(self):
   import re,xml.etree.ElementTree as ET
-  from stroyid.infrastructure.documents.drawing_frame import frame_page
+  from drawing_frame import frame_page
   custom='''<svg xmlns="http://www.w3.org/2000/svg" width="{{Геометрия.Ширина}}mm" height="{{Геометрия.Высота}}mm" viewBox="0 0 {{Геометрия.Ширина}} {{Геометрия.Высота}}">
   <path id="user-artwork" d="M30 60L150 60"/>
   <text id="drawing-sheet-caption" x="{{Геометрия.X_Центр_Листа}}" y="{{Геометрия.Y_Центр_Листа}}" font-size="5">{{Лист.Надпись}}</text></svg>'''
   for width in (210,420):
    writer=PdfWriter();page=writer.add_blank_page(width*MM,297*MM)
-   with patch('stroyid.infrastructure.documents.drawing_frame.template_svg',wraps=template_svg) as render:
+   with patch('drawing_frame.template_svg',wraps=template_svg) as render:
     frame_page(page,{'captionEnabled':True,'preserveDrawingNumber':True,'values':{'Схема.Номер':'ИС-1','АОСР.Работы':'Монтаж трубопровода на первом этаже в осях 1–20'}},template=custom)
    source,values=render.call_args.args[:2]
    self.assertEqual(source.count('id="drawing-sheet-caption"'),1);self.assertIn('id="user-artwork"',source)
@@ -64,7 +64,7 @@ class DrawingFrameTests(unittest.TestCase):
   self.assertEqual(values['Рамка.Строка1.ФамилияИнициалы'],'')
 
  def test_custom_template_must_support_configured_row_slots(self):
-  from stroyid.infrastructure.documents.drawing_frame import frame_page
+  from drawing_frame import frame_page
   writer=PdfWriter();page=writer.add_blank_page(420*MM,297*MM)
   with self.assertRaisesRegex(ValueError,'использует старые теги'):
    frame_page(page,{'signerRows':[{'role':'Разработал','name':'Иванов'}]},
@@ -104,7 +104,7 @@ class DrawingFrameTests(unittest.TestCase):
    self.assertEqual(reader.pages[2].rotation,90)
 
  def test_custom_frame_gets_automatic_caption_if_tag_is_absent(self):
-  from stroyid.infrastructure.documents.drawing_frame import frame_page
+  from drawing_frame import frame_page
   writer=PdfWriter();page=writer.add_blank_page(420*MM,297*MM)
   custom='<svg xmlns="http://www.w3.org/2000/svg" width="{{Геометрия.Ширина}}mm" height="{{Геометрия.Высота}}mm" viewBox="0 0 {{Геометрия.Ширина}} {{Геометрия.Высота}}"></svg>'
   result=frame_page(page,{'captionEnabled':True,'sheetPlaces':{'1':'этаж 1'},
@@ -207,7 +207,7 @@ class DrawingFrameTests(unittest.TestCase):
    root=Path(tmp);store=Store(root/'db');source=root/'original.pdf';source.write_bytes(self.source());asset=store.import_file(source)
    # A real QtPdf preview must succeed even when creating temporary files is
    # forbidden. This covers the Windows handle failure without skipping tests.
-   with patch('stroyid.infrastructure.documents.drawing_frame.tempfile.TemporaryDirectory',side_effect=AssertionError('Preview attempted a temporary file')):
+   with patch('drawing_frame.tempfile.TemporaryDirectory',side_effect=AssertionError('Preview attempted a temporary file')):
     for page in (1,3,2,1):
      result=preview(store,{'key':asset['id'],'page':page})
      self.assertTrue(result['image'].startswith('data:image/png;base64,'))

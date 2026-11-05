@@ -1,8 +1,8 @@
 import copy,io,json,tempfile,unittest,zipfile
 from pathlib import Path
 from pypdf import PdfWriter
-from stroyid.infrastructure.storage import Store
-from stroyid.domain.migrations import migrate
+from folder_store import Store
+from model_v8 import migrate
 
 def state():return {'meta':{'v':30,'name':'База'},'projects':[],'ui':{},'history':[],'trash':[],'lib':{k:[] for k in ('orgs','people','orders','base','profiles','templates')}}
 def project():return {'id':'p','name':'УТК Боец','short':'УТК Боец','systems':[],'materials':[],'journals':[],'surveys':[],'opsDocs':[],'admin':[],'executions':[{'id':'e1','name':'Выполнение 1','date':'2026-10-12'},{'id':'e2','name':'Выполнение 2','date':'2026-10-15'}]}
@@ -42,10 +42,17 @@ class WorkspaceV8(unittest.TestCase):
   s=self.fixture();r=self.store.move_trash({'ent':'base','id':'b'})['state'];tid=r['trash'][0]['id'];self.assertEqual(r['projects'][0]['materials'][0]['baseId'],'b');self.assertEqual(r['lib']['base'],[])
   with self.assertRaisesRegex(ValueError,'используется'):self.store.purge_trash({'id':tid})
   r['projects'][0]['materials']=[];self.store.save(r,0);self.assertEqual(self.store.purge_trash({'id':tid})['state']['trash'],[])
+ def test_explorer_deletion_warns_until_explicit_recovery_even_after_restart(self):
+  s=self.fixture();d=s['projects'][0]['systems'][0]['acts'][0]['schemes'][0];file=self.store.path(d['fileKey']);file.unlink();r=Store(self.store.root).load();self.assertTrue(any(w.get('missing') for w in r['warnings']));self.assertFalse(file.exists());r=self.store.load();self.store.recover_missing('acts:a-s1');self.assertEqual(file.read_bytes(),self.pdf());self.assertFalse(self.store.load()['warnings'])
  def test_portable_zip_reopens_in_unrelated_folder_with_shared_passport(self):
   s=self.fixture();s['projects'][0]['executions']=s['projects'][0]['executions'][:1];s['projects'][0]['systems']=s['projects'][0]['systems'][:1];target=self.root/'portable.zip';self.store.portable_export(s,target)
   with zipfile.ZipFile(target) as z:z.extractall(self.root/'another-pc')
   other=Store(self.root/'another-pc/СтройИД');r=other.load();self.assertFalse(r['warnings']);self.assertEqual(len(r['state']['projects'][0]['systems']),1);doc=r['state']['lib']['base'][0]['docs'][0];self.assertEqual(other.asset_path(doc['fileKey'])[0].read_bytes(),self.pdf());self.assertFalse(any(p.suffix=='.pdf' for p in (other.root/'УТК Боец'/'Общие документы'/'Материалы').rglob('*')))
+ def test_migrate_real_v07_repository_with_checkpoint_and_borrowed_sheets(self):
+  from folder_core import Store as OldStore
+  root=self.root/'v07';old=OldStore(root);s=state();p=project();shared=system('shared','e1');shared.pop('executionId');shared['acts']=[act('first','e1'),act('second','e2')];shared['acts'][0]['schemes']=[{'id':'borrowed','name':'Чужой лист','file':'','pages':2}];shared['acts'][1]['schemeLinks']=[{'id':'borrowed','from':2,'to':2}];p['systems']=[shared]
+  for e in p['executions']:e['allocations']=[{'systemId':'shared','qty':'12'}]
+  s['projects']=[p];s['volCfg']={'p|T2_sp-shared':{'off':['tests'],'order':['aosr','schemes']}};old.save(s,0);old.close();new=Store(root);loaded=new.load();self.assertFalse(loaded['warnings']);self.assertEqual(len(loaded['state']['projects'][0]['systems']),2);second=loaded['state']['projects'][0]['systems'][1];link=second['acts'][0]['schemeLinks'][0];self.assertTrue(any(x['id']==link['id'] for x in second['sketches']));self.assertEqual(loaded['state']['volCfg']['p|e2::T2_'+second['subprofiles'][0]['id']]['off'],['tests']);self.assertTrue(any('Перед переходом' in b['reason'] for b in new.list_backups()));self.assertEqual({x.name for x in root.iterdir()},{'УТК Боец','_Служебное','Справочники'})
  def test_deleted_quality_row_travels_in_portable_archive_and_restores_parent(self):
   self.fixture();r=self.store.move_trash({'ent':'base','id':'b','path':'docs','row':'quality'})['state'];tid=r['trash'][0]['id']
   with self.assertRaisesRegex(ValueError,'используется'):self.store.purge_trash({'id':tid})

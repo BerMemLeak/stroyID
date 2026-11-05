@@ -6,8 +6,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfWriter
-from stroyid.presentation.desktop.window import Window, dispose_window
-from stroyid.infrastructure.storage import Store
+from app import Window, dispose_window
+from folder_store import Store
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();root=Path(tmp.name);store=Store(root/'db')
 w=PdfWriter();[w.add_blank_page(1191,842) for _ in range(3)];w.write(root/'certificate.pdf');asset=store.import_file(root/'certificate.pdf')
 window=Window(store,test_profile=True);window.show();stage=0;errors=[]
@@ -142,5 +142,5 @@ def poll():
  if stage==0:window.page.runJavaScript('window.desktopReady',ready)
  elif stage==1:window.page.runJavaScript('window.frameResult?JSON.stringify(window.frameResult):null',receive)
 timer=QTimer();timer.timeout.connect(poll);timer.start(100);QTimer.singleShot(60000,lambda:fail('Frame test timed out'))
-with patch('stroyid.infrastructure.documents.drawing_frame.resolve_frame_font',return_value='DejaVu Sans'):code=app.exec()
+with patch('drawing_frame.resolve_frame_font',return_value='DejaVu Sans'):code=app.exec()
 dispose_window(window);store.close();tmp.cleanup();print('\n'.join(errors));sys.exit(code)

@@ -2,7 +2,7 @@ import os,tempfile,unittest,shutil
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
-from stroyid.infrastructure.storage import atomic,windows_extended_path
+from folder_store import atomic,windows_extended_path
 
 @contextmanager
 def long_path_temporary_directory():
@@ -25,7 +25,7 @@ class AtomicPaths(unittest.TestCase):
  def test_failed_replace_preserves_original_and_cleans_temporary_file(self):
   with tempfile.TemporaryDirectory() as root:
    target=Path(root)/'Паспорт.pdf';atomic(target,b'old')
-   with patch('stroyid.infrastructure.storage.records.os.replace',side_effect=OSError('blocked')):
+   with patch('folder_store.os.replace',side_effect=OSError('blocked')):
     with self.assertRaises(OSError):atomic(target,b'new')
    self.assertEqual(target.read_bytes(),b'old');self.assertEqual(list(target.parent.iterdir()),[target])
  def test_drive_unc_and_already_extended_windows_paths(self):

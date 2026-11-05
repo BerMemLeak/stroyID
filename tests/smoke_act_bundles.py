@@ -6,9 +6,9 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QImage
 from pypdf import PdfWriter,PdfReader
-from stroyid.presentation.desktop.window import Window,dispose_window
-from stroyid.infrastructure.storage import Store
-from stroyid.application.exports.pdf import prepare_export,write_export
+from app import Window,dispose_window
+from folder_store import Store
+from pdf_export import prepare_export,write_export
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();root=Path(tmp.name);store=Store(root/'database')
 w=PdfWriter();w.add_blank_page(210,297);w.add_blank_page(420,297);w.write(root/'source.pdf');w.close();asset=store.import_file(root/'source.pdf')
 image=QImage(10,10,QImage.Format.Format_RGB32);image.fill(0xffffff);image.save(str(root/'photo.png'));photo='data:image/png;base64,'+base64.b64encode((root/'photo.png').read_bytes()).decode()
@@ -52,7 +52,7 @@ def ready(value):
  window.page.runJavaScript(script)
 def receive(raw):
  global stage
- if stage!=1 or not raw:return
+ if not raw:return
  try:
   result=json.loads(raw);assert not result.get('error'),result.get('error');assert not window.page.console_errors,window.page.console_errors
   prepared=prepare_export(store,result['plan']);documents=prepared['volumes'][0]['documents'];assert [d['id'] for d in documents if d['id'] not in ('title','reg')]==result['ids']
@@ -60,7 +60,7 @@ def receive(raw):
   assert [tuple(d['reader'].pages[d['selection'][0]].mediabox)[2:] for d in ranges]==[(210,297),(420,297)]
   output=write_export(prepared,root/'bundle.pdf',store);assert len(PdfReader(output['path']).pages)==output['pages']
   assert [d['sourceBlock'] for d in documents if d.get('ownerActId')]==['schemes','photos','quality']*2
-  stage=2;timer.stop();print('PASS: act bundles, selected ranges, profile ordering, preview, quality rules, exclusions, separate schemes, single act, native PDF');app.exit(0)
+  stage=2;timer.stop();print('PASS: act bundles, selected ranges, profile ordering, preview, quality rules, exclusions, separate schemes, single act, native PDF');window.close()
  except Exception:fail(traceback.format_exc())
 def poll():
  if not stage:window.page.runJavaScript('window.desktopReady',ready)

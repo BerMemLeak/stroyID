@@ -32,8 +32,8 @@ class DateInputTests(unittest.TestCase):
           function change(t,value){t.value=value;handlers.change({target:t});}
           function leave(t){document.activeElement=null;handlers.focusout({target:t});}
         ''')
-        source = (ROOT / 'ui/dist/app.js').read_text(encoding='utf-8')
-        self.evaluate(source[source.index('function apply(t, fromInput)'):source.index('function fsRename(t)')])
+        source = (ROOT / 'ui/index.html').read_text(encoding='utf-8')
+        self.evaluate(source[source.index('function apply(t,fromInput)'):source.index('function fsRename(t)')])
 
     def evaluate(self, source):
         value = self.js.evaluate(source)

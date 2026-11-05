@@ -5,10 +5,10 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
-from stroyid.presentation.desktop.window import Window,dispose_window
-from stroyid.infrastructure.storage import Store
-from stroyid.infrastructure.documents.word_templates import inspect_docx,package
-from stroyid.application.exports.pdf import prepare_export,render_html
+from app import Window,dispose_window
+from storage import Store
+from word_templates import inspect_docx,package
+from pdf_export import prepare_export,render_html
 from pdf_text import page_text
 application=QApplication.instance() or QApplication([])
 work=tempfile.TemporaryDirectory();root=Path(work.name);store=Store(root/'data')
@@ -60,7 +60,7 @@ def ready(ok):
  const custom=await nativeCall('referenceTemplate',{section:'quantity'});
  const t={id:uid(),name:'Моя ведомость',type:'Ведомость объёмов работ',section:'quantity',fileKey:custom.id};S.lib.templates.push(t);p.wordTemplates.quantity=t.id;
  assert(quantitySource(p,s,a,v).templateKey===custom.id,'Custom template ignored');
- await A.quantityDownload({id:a.id});if(!document.querySelector('#toast').textContent.includes('Ведомость сохранена'))throw Error('Download: '+document.querySelector('#toast').textContent);
+ await A.quantityDownload({id:a.id});
  a.quantityEnabled=false;assert(!appsText(a,s).includes('Ведомость'),'Disabled sheet still listed');
  assert(!pdfPlan(p,[v]).volumes[0].documents.some(d=>d.id==='quantity:'+a.id),'Disabled sheet exported');
  a.quantityEnabled=true;a.type='АООК';assert(!quantityEnabled(a),'AOOK unexpectedly enabled');a.type='АОСР';
@@ -83,7 +83,7 @@ def finished(value):
  try:
   result=json.loads(value);assert result['ok'],result
   assert not inspect_docx((root/'quantity.docx').read_bytes())['tags']
-  with patch('stroyid.application.exports.pdf.convert_docx_batch',side_effect=converter):prepared=prepare_export(store,result['plan'])
+  with patch('pdf_export.convert_docx_batch',side_effect=converter):prepared=prepare_export(store,result['plan'])
   docs=prepared['volumes'][0]['documents'];q=next(d for d in docs if d['id'].startswith('quantity:'));a=docs[docs.index(q)-1]
   assert 'Монтаж трубы' in rendered[0] and 'Монтаж хомутов' in rendered[0]
   assert '[[QUANTITY_SHEETS:' not in a['html']
@@ -97,7 +97,7 @@ def poll():
  elif stage==1:window.page.runJavaScript('window.quantityResult||null',finished)
 timer=QTimer();timer.timeout.connect(poll);timer.start(100)
 QTimer.singleShot(90000,lambda:fail('Quantities smoke timed out'))
-with patch('stroyid.presentation.desktop.window.QFileDialog.getSaveFileName',return_value=(str(root/'quantity.docx'),'Word')):code=application.exec()
+with patch('app.QFileDialog.getSaveFileName',return_value=(str(root/'quantity.docx'),'Word')):code=application.exec()
 dispose_window(window);store.close();work.cleanup()
 if errors:print('\n'.join(errors),file=sys.stderr)
 sys.exit(1 if errors or stage != 2 else code)

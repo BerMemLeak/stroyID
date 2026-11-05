@@ -5,8 +5,8 @@ from unittest.mock import patch
 sys.path[:0]=[str(Path(__file__).resolve().parents[1]),str(Path(__file__).resolve().parent)]
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
-from stroyid.presentation.desktop.window import Window,dispose_window
-from stroyid.infrastructure.storage import Store
+from app import Window,dispose_window
+from storage import Store
 from test_print_materials import fixture_xlsx,pdf
 
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();root=Path(tmp.name)
@@ -39,7 +39,7 @@ script=r'''(async()=>{try{
  assert(a.materials.join(',')===ids,'Act material IDs changed');
  for(const id of ['share-one','share-two']){const m=p.materials.find(x=>x.id===id);assert(m.baseId&&m.docs.length===0&&mDocs(m).length===2,'Promotion lost documents or object links');}
  const loaded=await nativeCall('load');assert(!loaded.conflicts.length,'Promotion created conflicts');
- await A.desktopSave();go('#/a/'+a.id);render();assert(document.querySelectorAll('[data-act-register]').length===3,'Register controls missing');
+ go('#/a/'+a.id);render();assert(document.querySelectorAll('[data-act-register]').length===3,'Register controls missing');
  const v=volumeList(p).find(v=>v.s?.id===s.id),plan=pdfPlan(p,[v]),doc=plan.volumes[0].documents.find(d=>d.id==='a'+a.id);
  assert(doc.actRegister?.actId===a.id,'No act metadata');
  A.printSetup({p:p.id});assert(!document.querySelector('#print-number').checked,'Page numbers should default off');
@@ -70,9 +70,9 @@ def tick():
  if not started:window.page.runJavaScript('window.desktopReady===true',begin)
  else:window.page.runJavaScript('window.printMaterialsResult||null',finish)
 timer=QTimer();timer.timeout.connect(tick);timer.start(100);QTimer.singleShot(90000,app.quit)
-with patch('stroyid.presentation.desktop.window.QFileDialog.getOpenFileName',return_value=(str(root/'materials.xlsx'),'')), \
-     patch('stroyid.presentation.desktop.window.QFileDialog.getExistingDirectory',return_value=str(root)), \
-     patch('stroyid.presentation.desktop.window.QFileDialog.getSaveFileName',return_value=(str(root/'download-template.xlsx'),'')):
+with patch('app.QFileDialog.getOpenFileName',return_value=(str(root/'materials.xlsx'),'')), \
+     patch('app.QFileDialog.getExistingDirectory',return_value=str(root)), \
+     patch('app.QFileDialog.getSaveFileName',return_value=(str(root/'download-template.xlsx'),'')):
  app.exec()
 assert result and result.get('ok'),result
 assert (root/'download-template.xlsx').read_bytes()==(Path(__file__).resolve().parents[1]/'ui/reference-templates/materials-import.xlsx').read_bytes()

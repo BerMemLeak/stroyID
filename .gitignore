@@ -82,7 +82,3 @@ htmlcov/
 .venv-macos/
 dist-macos/
 *.dmg
-
-# Reproducible desktop UI bundled for source launches
-!ui/dist/
-!ui/dist/app.js

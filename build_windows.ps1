@@ -1,4 +1,4 @@
-﻿param([switch]$NoLaunch, [switch]$FullChecks)
+﻿param([switch]$NoLaunch)
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $env:PYTHONUTF8 = '1'
@@ -88,9 +88,7 @@ try {
     $buildErrors = Join-Path $logs 'build-errors.txt'
     Write-Host ('Начата сборка. Полный вывод: ' + $buildOutput)
     Write-Host 'Тесты и упаковка могут занять несколько минут. Не закрывайте окно.'
-    $buildArgs = @('-u', 'tools\build_release.py')
-    if (-not $FullChecks) { $buildArgs += '--quick' }
-    $process = Start-Process -FilePath $venvPython -ArgumentList $buildArgs `
+    $process = Start-Process -FilePath $venvPython -ArgumentList @('-u', 'tools\build_release.py') `
         -WorkingDirectory $PSScriptRoot -RedirectStandardOutput $buildOutput `
         -RedirectStandardError $buildErrors -NoNewWindow -Wait -PassThru
     foreach ($path in @($buildOutput, $buildErrors)) {

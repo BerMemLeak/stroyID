@@ -8,9 +8,9 @@ from unittest.mock import patch
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfWriter
-from stroyid.infrastructure.storage import Store
-from stroyid.infrastructure.documents.word_templates import fill_docx, inspect_docx, package
-from stroyid.application.exports.pdf import prepare_export
+from storage import Store
+from word_templates import fill_docx, inspect_docx, package
+from pdf_export import prepare_export
 from pdf_text import page_text
 
 class QuantitiesTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class QuantitiesTests(unittest.TestCase):
     def test_collection_repeats_and_original_is_unchanged(self):
         source = Path(__file__).resolve().parents[1] / 'ui/reference-templates/quantities.docx'
         data = source.read_bytes()
-        values = {k: 'TEST' for k in inspect_docx(data)['tags'] if k not in __import__('stroyid.domain.document_tags',fromlist=['*']).collection_tags()}
+        values = {k: 'TEST' for k in inspect_docx(data)['tags'] if k not in __import__('document_tags').collection_tags()}
         with tempfile.TemporaryDirectory() as root:
             target = Path(root) / 'filled.docx'
             fill_docx(data, target, values, {'Объемы': [
@@ -45,13 +45,13 @@ class QuantitiesTests(unittest.TestCase):
                     for _ in range(3):writer.add_blank_page(595, 842)
                     writer.write(target);writer.close()
             template = Path(__file__).resolve().parents[1] / 'ui/reference-templates/quantities.docx'
-            values = {k: 'TEST' for k in inspect_docx(template.read_bytes())['tags'] if k not in __import__('stroyid.domain.document_tags',fromlist=['*']).collection_tags()}
+            values = {k: 'TEST' for k in inspect_docx(template.read_bytes())['tags'] if k not in __import__('document_tags').collection_tags()}
             act = {'id':'act', 'kind':'html', 'html':'<p>Ведомость: '+marker+' л.</p>',
                    'attachmentPageRefs':{marker:'quantity:one'}}
             plan = {'volumes':[{'documents':[{'kind':'registry'},act,
                 {'id':'quantity:one','kind':'word','builtinTemplate':'quantity','values':values,'collections':{'Объемы':[]}}]}]}
             try:
-                with patch('stroyid.application.exports.pdf.convert_docx_batch',side_effect=convert):
+                with patch('pdf_export.convert_docx_batch',side_effect=convert):
                     result=prepare_export(store,plan)
                 docs=result['volumes'][0]['documents']
                 self.assertEqual(docs[2]['count'],3)

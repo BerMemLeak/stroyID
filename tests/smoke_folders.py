@@ -5,8 +5,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QPdfWriter,QPainter
-from stroyid.presentation.desktop.window import Window,dispose_window
-from stroyid.infrastructure.storage import Store
+from app import Window,dispose_window
+from storage import Store
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();root=Path(tmp.name);store=Store(root/'base');window=Window(store,test_profile=True);window.show();stage=0;errors=[]
 def fail(x):errors.append(str(x));app.exit(1)
 def ready(v):
@@ -38,7 +38,7 @@ def receive(v):
  if stage==1:
   key='base:'+store.load()['state']['lib']['base'][0]['id'];path=store.path(store.paths[key]);path.write_text('{ broken')
   pdf=path.parent/'Сертификат из Проводника.pdf';w=QPdfWriter(str(pdf));p=QPainter(w);p.drawText(20,100,'Certificate');p.end();del p,w;stage=2
-  window.page.runJavaScript('''(async()=>{try{await A.folderRefresh();if(!folderWarnings.some(w=>w.message.includes('Повреждена')))throw Error('JSON warning missing');history.replaceState(null,'','#/sync');render();window.folderStage=2;}catch(e){window.folderResult={error:e.stack};}})();''')
+  window.page.runJavaScript('''(async()=>{try{await A.folderRefresh();if(!folderWarnings.some(w=>w.message.includes('Повреждён JSON')))throw Error('JSON warning missing');history.replaceState(null,'','#/sync');render();window.folderStage=2;}catch(e){window.folderResult={error:e.stack};}})();''')
  elif stage==2:
   window.grab().save(str(Path(__file__).resolve().parents[1]/'validation'/'sync.png'));key=next(w['key'] for w in store.warnings if w.get('key'));stage=3
   script='''(async()=>{try{await A.folderRepair({key:KEY});const label=[...document.querySelectorAll('.dlg label')].find(x=>x.textContent.includes('Производитель'));if(!label)throw Error('Repair form missing');label.querySelector('input').value='Исправлено инженером';MB[1].f();closeModal();await A.folderRefresh();if(folderWarnings.length)throw Error(JSON.stringify(folderWarnings));const m=S.lib.base.find(m=>m.maker==='Исправлено инженером');if(!m.docs.some(d=>d.file==='Сертификат из Проводника.pdf'))throw Error('Explorer PDF not found');history.replaceState(null,'','#/lib/orgs/'+S.lib.orgs[0].id);render();window.folderStage=3;}catch(e){window.folderResult={error:e.stack};}})();'''.replace('KEY',json.dumps(key));window.page.runJavaScript(script)

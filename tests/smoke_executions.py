@@ -6,9 +6,9 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 from pypdf import PdfWriter,PdfReader
-from stroyid.presentation.desktop.window import Window,dispose_window
-from stroyid.infrastructure.storage import Store
-from stroyid.infrastructure.documents.drawing_frame import MM,TEMPLATE
+from app import Window,dispose_window
+from folder_store import Store
+from drawing_frame import MM,TEMPLATE
 from pdf_text import page_text
 app=QApplication([]);tmp=tempfile.TemporaryDirectory();root=Path(tmp.name);store=Store(root/'database');writer=PdfWriter();writer.add_blank_page(210*MM,297*MM);writer.add_blank_page(420*MM,297*MM);writer.write(root/'scheme.pdf');asset=store.import_file(root/'scheme.pdf');(root/'frame.html').write_bytes(TEMPLATE.read_bytes());window=Window(store,test_profile=True);window.show();stage=0;errors=[];saved=[]
 def fail(x):errors.append(str(x));app.exit(1)
@@ -96,5 +96,5 @@ def poll():
  elif stage==1:window.page.runJavaScript("JSON.stringify(window.executionResult||(document.querySelector('[data-frame-warning]')?{error:'Unexpected signer warning: test fixtures must provide all frame signers'}:null))",receive)
 timer=QTimer();timer.timeout.connect(poll);timer.start(200);QTimer.singleShot(90000,lambda:fail('Execution/export UI timed out'))
 # Substitute a free test font only for geometry; production still requires ISOCPEUR.
-with patch('stroyid.infrastructure.documents.drawing_frame.resolve_frame_font', return_value='DejaVu Sans'), patch('stroyid.presentation.desktop.window.QFileDialog.getSaveFileName',side_effect=destination),patch('stroyid.presentation.desktop.window.QFileDialog.getOpenFileName',return_value=(str(root/'frame.html'),'HTML')):code=app.exec()
+with patch('drawing_frame.resolve_frame_font', return_value='DejaVu Sans'), patch('app.QFileDialog.getSaveFileName',side_effect=destination),patch('app.QFileDialog.getOpenFileName',return_value=(str(root/'frame.html'),'HTML')):code=app.exec()
 dispose_window(window);store.close();tmp.cleanup();print('\n'.join(errors));sys.exit(code)
