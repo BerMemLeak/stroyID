@@ -103,6 +103,27 @@ class PdfExportTests(unittest.TestCase):
                 prepare_export(self.store, {'volumes': [{'title': 'Том', 'documents': [
                     {'kind': 'pdf', 'name': name, 'key': key}]}]})
 
+    def test_default_registry_lists_itself_and_excludes_title_from_total(self):
+        docs = [
+            {'id': 'title', 'kind': 'html', 'name': 'Титульный лист', 'html': '<p>Титул</p>'},
+            {'id': 'reg', 'kind': 'registry', 'referenceLayout': True, 'name': 'Реестр',
+             'values': {'Объект.Наименование': 'Проверочный объект'}},
+        ]
+        docs.extend(
+            {'kind': 'pdf', 'key': self.asset['id'], 'from': 1, 'to': 1,
+             'name': f'Документ {n}', 'nd': f'№ {n}'}
+            for n in range(105)
+        )
+        prepared = prepare_export(self.store, {'volumes': [{'documents': docs}]})
+        registry = prepared['volumes'][0]['documents'][1]
+        self.assertGreater(registry['count'], 1)
+        pages = [page_text(page) for page in registry['reader'].pages]
+        content = ' '.join(' '.join(pages).split())
+        self.assertIn('Проверочный объект', content)
+        self.assertNotIn('Титульный лист', content)
+        self.assertLess(content.index('Реестр исполнительной документации'), content.index('Документ 0'))
+        self.assertIn(f'ИТОГО СТРАНИЦ ПО РЕЕСТРУ: {105 + registry["count"]}', content)
+
     def test_long_registry_converges_and_global_ranges_match(self):
         docs = [{'kind': 'html', 'name': 'Титульный', 'html': '<h2>Титульный лист</h2>'},
                 {'kind': 'registry', 'name': 'Реестр'}]

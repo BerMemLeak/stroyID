@@ -13,7 +13,7 @@ from pypdf import PdfReader, PdfWriter
 from PySide6.QtCore import QMarginsF, QUrl
 from PySide6.QtGui import QFont, QImage, QPageLayout, QPageSize, QTextDocument
 from PySide6.QtPrintSupport import QPrinter
-from stroyid.infrastructure.documents.word_templates import fill_docx, convert_docx_batch
+from stroyid.infrastructure.documents.word_templates import fill_docx, convert_docx_batch, inspect_docx
 
 
 def render_html(body, target, *, landscape=False):
@@ -327,18 +327,23 @@ def prepare_export(store, plan):
                     target = work / f"registry-{vi}-{di}.pdf"
                     if doc.get("templateKey"):
                         source, _ = store.asset_path(doc["templateKey"])
+                        template = source.read_bytes()
+                        reference = "Реестр.ИтогоСтраниц" in inspect_docx(template)["tags"]
+                        registry_rows = reference_registry_rows(rows, doc) if reference else rows
                         entries = [
                             {
-                                "Номер": r["n"],
+                                "Номер": n if reference else r["n"],
                                 "Тип": r.get("type", ""),
                                 "Наименование": r.get("name", ""),
-                                "Номер_Дата": r.get("nd", ""),
+                                "Номер_Дата": r.get("nd") or (
+                                    "Реестр исполнительной документации" if reference and n == 1 else ""
+                                ),
                                 "КоличествоСтраниц": r["count"],
                                 "Листы": str(r["start"])
                                 if r["start"] == r["end"]
                                 else f"{r['start']}-{r['end']}",
                             }
-                            for r in rows
+                            for n, r in enumerate(registry_rows, 1)
                         ]
                         summary = "\n".join(
                             f"{r['Номер']}. {r['Наименование']} — листы {r['Листы']}"
@@ -346,15 +351,19 @@ def prepare_export(store, plan):
                         )
                         values = {
                             **doc.get("values", {}),
+                            "Реестр.ИтогоСтраниц": sum(r["count"] for r in registry_rows),
                             "Реестр.Текст": summary,
                             "Документ.Содержание": summary,
                         }
                         filled = target.with_suffix(".docx")
-                        fill_docx(source.read_bytes(), filled, values, {"Реестр": entries})
+                        fill_docx(template, filled, values, {"Реестр": entries})
                         convert_docx_batch([(filled, target)])
                         data = target.read_bytes()
                     else:
-                        body = registry_html(volume["title"], rows)
+                        if doc.get("referenceLayout"):
+                            body = reference_registry_html(reference_registry_rows(rows, doc), doc["values"])
+                        else:
+                            body = registry_html(volume["title"], rows)
                         data = render_html(body, target)
                     reader = read_pdf(data, "Реестр")
                     count = len(reader.pages)
@@ -370,6 +379,49 @@ def prepare_export(store, plan):
         "documents": sum(len(v["documents"]) for v in volumes),
         "object": plan.get("object", ""),
     }
+
+
+def reference_registry_rows(rows, registry):
+    return [registry, *(row for row in rows if row is not registry and row.get("id") != "title")]
+
+
+def reference_registry_html(rows, values):
+    def field(tag):
+        return html.escape(str(values.get(tag) or ""))
+
+    headers = (
+        ("Объект", "Объект.Наименование"),
+        ("Адрес объекта", "Объект.Адрес"),
+        ("Заказчик", "Участники.Техзаказчик.Реквизиты"),
+        ("Генеральный подрядчик", "Участники.Генподрядчик.Реквизиты"),
+    )
+    details = "<br>".join(f"{label}: {field(tag)}" for label, tag in headers)
+    cells = []
+    for n, row in enumerate(rows, 1):
+        number = html.escape(str(row.get("nd") or ("Реестр исполнительной документации" if n == 1 else "")))
+        name = html.escape(str(row.get("name") or ""))
+        cells.append(f'<tr><td align="center">{n}</td><td>{number}</td><td>{name}</td>'
+                     f'<td align="center">{row["count"]}</td></tr>')
+    total = sum(row["count"] for row in rows)
+    handed = field("Подписанты.ПредставительСтроительства.ФамилияИнициалы")
+    accepted = field("Подписанты.СтройконтрольЗаказчика.ФамилияИнициалы")
+    body = (
+        '<div style="font-size:8pt">'
+        '<p align="center" style="font-size:10pt"><b>РЕЕСТР ИСПОЛНИТЕЛЬНОЙ ДОКУМЕНТАЦИИ</b></p>'
+        f'<p>{details}</p>'
+        '<table border="1" cellspacing="0" cellpadding="2" width="100%">'
+        '<thead><tr><th width="6%">№ п/п</th><th width="24%">Номер/дата документа</th>'
+        '<th width="57%">Наименование</th><th width="13%">Кол-во страниц</th></tr></thead>'
+        f'<tbody>{"".join(cells)}</tbody></table>'
+        f'<p><b>ИТОГО СТРАНИЦ ПО РЕЕСТРУ: {total}</b></p>'
+        '<table width="100%" cellspacing="0"><tr>'
+        f'<td width="50%">Сдал: Представитель генподрядчика<br>________________ / {handed}</td>'
+        f'<td width="50%">Принял: Представитель заказчика<br>________________ / {accepted}</td>'
+        '</tr></table></div>'
+    )
+    for tag in ("td", "th"):
+        body = re.sub(rf"<{tag}(?=[ >])", f'<{tag} style="font-size:8pt;padding:1px"', body)
+    return body
 
 
 def registry_html(title, rows):

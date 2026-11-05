@@ -307,7 +307,7 @@ A.wordPreview = async (d) => {
     );
     if (key === "reg") {
       context.collections.Реестр = registry(p, vol)
-        .rows.filter((r) => !r.book)
+        .rows.filter((r) => !r.book && (!t.tags?.includes("Реестр.ИтогоСтраниц") || r.id !== "title"))
         .map((r) => ({
           Номер: r.n,
           Тип: r.type,
@@ -316,6 +316,15 @@ A.wordPreview = async (d) => {
           КоличествоСтраниц: r.to - r.from + 1,
           Листы: r.from === r.to ? String(r.from) : r.from + "-" + r.to,
         }));
+      if (t.tags?.includes("Реестр.ИтогоСтраниц")) {
+        context.collections.Реестр.sort((a, b) => Number(b.Тип === "Реестр") - Number(a.Тип === "Реестр"));
+        context.collections.Реестр.forEach((r, i) => {
+          r.Номер = i + 1;
+          if (i === 0 && r.Тип === "Реестр" && !r.Номер_Дата)
+            r.Номер_Дата = "Реестр исполнительной документации";
+        });
+        context.values["Реестр.ИтогоСтраниц"] = context.collections.Реестр.reduce((sum, r) => sum + r.КоличествоСтраниц, 0);
+      }
       context.values["Реестр.Текст"] = context.values["Документ.Содержание"] =
         context.collections.Реестр
           .map((r) => r.Номер + ". " + r.Наименование + " — " + r.Листы)
@@ -336,7 +345,9 @@ A.wordSample = async (d) => {
     const section = WORD_SECTIONS.find((x) => x[0] === d.section);
     if (!section) return;
     const f = await desktopTrack(
-      nativeCall("sampleDocx", { section: section[0], title: section[2] }),
+      ["title", "reg"].includes(section[0])
+        ? nativeCall("referenceTemplate", { section: section[0] })
+        : nativeCall("sampleDocx", { section: section[0], title: section[2] }),
     );
     const t = {
       id: "t" + uid(),

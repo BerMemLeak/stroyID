@@ -10684,6 +10684,30 @@ const DOCUMENT_TAG_SCHEMA = {
     "Геометрия.Y_Надписи_Листа": {
       "type": "frame",
       "source": "Положение заголовка над схемой с учётом блока приложения"
+    },
+    "Комплект.Объект": {
+      "source": "Полное название и адрес объекта",
+      "type": "text",
+      "required": false,
+      "empty": "blank"
+    },
+    "Комплект.Проект": {
+      "source": "Шифр и название раздела или шифр проекта",
+      "type": "text",
+      "required": false,
+      "empty": "blank"
+    },
+    "Комплект.Выполнение": {
+      "source": "Наименование выполнения и код раздела",
+      "type": "text",
+      "required": false,
+      "empty": "blank"
+    },
+    "Реестр.ИтогоСтраниц": {
+      "source": "Сумма страниц позиций реестра",
+      "type": "text",
+      "required": false,
+      "empty": "blank"
     }
   },
   "collections": {
@@ -11044,7 +11068,7 @@ A.wordPreview = async (d) => {
     );
     if (key === "reg") {
       context.collections.Реестр = registry(p, vol)
-        .rows.filter((r) => !r.book)
+        .rows.filter((r) => !r.book && (!t.tags?.includes("Реестр.ИтогоСтраниц") || r.id !== "title"))
         .map((r) => ({
           Номер: r.n,
           Тип: r.type,
@@ -11053,6 +11077,15 @@ A.wordPreview = async (d) => {
           КоличествоСтраниц: r.to - r.from + 1,
           Листы: r.from === r.to ? String(r.from) : r.from + "-" + r.to,
         }));
+      if (t.tags?.includes("Реестр.ИтогоСтраниц")) {
+        context.collections.Реестр.sort((a, b) => Number(b.Тип === "Реестр") - Number(a.Тип === "Реестр"));
+        context.collections.Реестр.forEach((r, i) => {
+          r.Номер = i + 1;
+          if (i === 0 && r.Тип === "Реестр" && !r.Номер_Дата)
+            r.Номер_Дата = "Реестр исполнительной документации";
+        });
+        context.values["Реестр.ИтогоСтраниц"] = context.collections.Реестр.reduce((sum, r) => sum + r.КоличествоСтраниц, 0);
+      }
       context.values["Реестр.Текст"] = context.values["Документ.Содержание"] =
         context.collections.Реестр
           .map((r) => r.Номер + ". " + r.Наименование + " — " + r.Листы)
@@ -11073,7 +11106,9 @@ A.wordSample = async (d) => {
     const section = WORD_SECTIONS.find((x) => x[0] === d.section);
     if (!section) return;
     const f = await desktopTrack(
-      nativeCall("sampleDocx", { section: section[0], title: section[2] }),
+      ["title", "reg"].includes(section[0])
+        ? nativeCall("referenceTemplate", { section: section[0] })
+        : nativeCall("sampleDocx", { section: section[0], title: section[2] }),
     );
     const t = {
       id: "t" + uid(),
@@ -13364,6 +13399,12 @@ assemblyRules = (p, plan) => {
       ? { values: { ...d.values, "Комплект.Наименование": name } }
       : {}),
   }));
+  const cover = intro.find((d) => d.id === "title");
+  if (cover?.kind === "html" && cover.values && ids.length > 1) {
+    cover.values["Комплект.Выполнение"] = ids.map((e) => e.name).join(", ");
+    cover.values["Комплект.Проект"] = p.cipher || "";
+    cover.html = defaultTitleHtml(cover.values);
+  }
   plan.volumes = [
     {
       ...first,
@@ -16392,12 +16433,28 @@ function documentValues(c) {
         ref: "#/build/" + p.id,
       });
   put("Комплект.Наименование", v.title, "Выбранный том");
+  const executionDate = c.execution?.date || c.execution?.end || c.execution?.start;
   put(
     "Комплект.Год",
-    p.documentYear || new Date().getFullYear(),
+    p.documentYear || executionDate?.slice(0, 4) || new Date().getFullYear(),
     "Год комплекта",
   );
-  put("Комплект.Город", p.documentCity, "Настройки объекта");
+  const city = p.address?.match(/(?:^|[,;]\s*|\s)г(?:ород|\.)\s*([^,;]+)/i)?.[1]?.trim();
+  put("Комплект.Город", p.documentCity || (city ? "г. " + city : ""), "Настройки объекта или адрес");
+  const systems = c.execution ? p.systems.filter((system) => system.executionId === c.execution.id) : p.systems;
+  const firstSystem = systems[0];
+  const section = s || (firstSystem && systems.every((system) =>
+    system.code === firstSystem.code && system.cipher === firstSystem.cipher
+  ) ? firstSystem : null);
+  const executionName = c.execution?.name?.replace(/^Выполнение\s+(?:№\s*)?(\d+)(?=\s|$)/i, "Выполнение №$1");
+  const sectionCode = section?.code;
+  const executionLabel = executionName && sectionCode && !executionName.endsWith(" " + sectionCode)
+    ? executionName + " " + sectionCode
+    : executionName;
+  put("Комплект.Объект", [p.name, p.address && !p.name?.includes(p.address) ? p.address : ""].filter(Boolean).join(", "), "Карточка объекта");
+  put("Комплект.Проект", [section?.cipher || p.cipher, section?.name].filter(Boolean).join(", "), "Карточка раздела или объекта");
+  put("Комплект.Выполнение", executionLabel || v.title, "Выбранное выполнение");
+  put("Реестр.ИтогоСтраниц", "", "Фактические страницы при сборке");
   put(
     "Комплект.Логотип",
     c.kind === "title" ? (issuer ? issuer.logo : p.logo) || "" : "",
@@ -16838,11 +16895,22 @@ function documentActHtml(a, p, s, sp) {
   return `<div class="paper">${line("Объект капитального строительства", "Объект.Наименование")}${line("Адрес объекта", "Объект.Адрес")}${line("Застройщик", "Участники.Застройщик.Реквизиты")}${line("Технический заказчик", "Участники.Техзаказчик.Реквизиты")}${line("Лицо, осуществляющее строительство", "Участники.Генподрядчик.Реквизиты")}${line("Лицо, осуществляющее подготовку проектной документации", "Участники.Проектировщик.Реквизиты")}<h2>АКТ</h2><p align="center">${a.type === "АООК" ? "освидетельствования ответственных конструкций" : "освидетельствования скрытых работ"}</p><p>№ ${get("АОСР.Номер")} от ${get("АОСР.Дата.Прописью")}</p>${DOCUMENT_ROLES.map((role, i) => line(esc(DOC_ROLES[i]), "Подписанты." + role + ".Описание")).join("")}<p>Произвели осмотр работ, выполненных ${get("Подписанты.ИсполнительРабот.Организация.Наименование")}</p>${line("1. К освидетельствованию предъявлены работы", "АОСР.Работы")}${line("Место выполнения работ", "АОСР.МестоРабот")}${line("2. Работы выполнены по проектной документации", "АОСР.РабочаяДокументация")}${line("3. При выполнении работ применены", "АОСР.Материалы")}${line("4. Предъявлены документы, подтверждающие соответствие работ", "АОСР.ПодтверждающиеДокументы")}<p>5. Начало работ: ${get("АОСР.Начало")}. Окончание: ${get("АОСР.Окончание")}.</p>${line("6. Работы выполнены в соответствии с", "АОСР.Нормативы")}${line("7. Разрешается производство последующих работ", "АОСР.ПоследующиеРаботы")}${line("Дополнительные сведения", "АОСР.ДополнительныеСведения")}<p>Акт составлен в ${get("АОСР.КоличествоЭкземпляров") || "___"} экземплярах.</p>${line("Приложения", "АОСР.Приложения")}<table>${DOCUMENT_ROLES.map((role, i) => `<tr><td>${esc(ROLE_SH[i])}</td><td>________________</td><td>${get("Подписанты." + role + ".ФамилияИнициалы")}</td></tr>`).join("")}</table></div>`;
 }
 aosrHtml = documentActHtml;
-pdfTitle = (p, v) => {
-  const c = wordContext(p, v, "title"),
-    g = (t) => esc(String(c.values[t] ?? ""));
-  return `${c.values["Комплект.Логотип"] ? '<p align="right"><img src="' + esc(c.values["Комплект.Логотип"]) + '" width="150"></p>' : ""}<p align="center">${g("Комплект.Компания.Реквизиты")}</p><h1>ИСПОЛНИТЕЛЬНАЯ ДОКУМЕНТАЦИЯ</h1><p align="center">${g("Объект.Наименование")}</p><p align="center">${g("Объект.Адрес")}</p><h2>${g("Комплект.Наименование")}</h2><p>Проект: ${g("Раздел.Шифр") || g("Объект.Шифр")}</p><p>${g("Раздел.Наименование")}</p><p>Заказчик: ${g("Участники.Техзаказчик.Наименование")}</p><p>Генеральный подрядчик: ${g("Участники.Генподрядчик.Наименование")}</p><p>Получатель комплекта: ${g("Комплект.Получатель.Наименование")}</p><p align="center">${g("Комплект.Город")} ${g("Комплект.Год")}</p>`;
-};
+function defaultTitleHtml(values) {
+  const g = (tag) => esc(String(values[tag] ?? ""));
+  const gap = (lines) => "<p>" + Array(lines).fill("&nbsp;").join("<br>") + "</p>";
+  return `<div style="font-family:Times New Roman;font-size:11pt">
+<p>${values["Комплект.Логотип"] ? '<img src="' + g("Комплект.Логотип") + '" width="190" height="70">' : ""}</p>
+${gap(1)}<p align="center"><b>Объект: ${g("Комплект.Объект")}</b></p>
+${gap(4)}<p align="center" style="font-size:17pt"><b>ИСПОЛНИТЕЛЬНО-ТЕХНИЧЕСКАЯ<br>ДОКУМЕНТАЦИЯ по проекту:</b></p>
+${gap(1)}<p align="center" style="font-size:17pt"><b>${g("Комплект.Проект")}</b></p>
+${gap(1)}<p align="center" style="font-size:16pt"><b><u>${g("Комплект.Выполнение")}</u></b></p>
+<p align="center"><i>(Разрешительная документация, акты, исполнительные схемы, документы о качестве)</i></p>
+${gap(5)}<p><u>Заказчик:</u> ${g("Участники.Техзаказчик.Наименование")}</p>
+${gap(3)}<p><u>Генеральный подрядчик:</u> ${g("Участники.Генподрядчик.Наименование")}</p>
+${gap(8)}<p align="center">${g("Комплект.Город")}<br>${g("Комплект.Год")} год</p>
+<hr color="#2456c9"><p style="font-size:9pt">${g("Комплект.Компания.Реквизиты")}</p></div>`;
+}
+pdfTitle = (p, v) => defaultTitleHtml(wordContext(p, v, "title").values);
 A.titlePrev = () => {
   const { p, vol } = curVol();
   modal("Титульный лист", pdfTitle(p, vol), [{ l: "Закрыть" }], "wide");
@@ -16865,6 +16933,13 @@ V.a = (r) => {
 const tagSources = pdfSources;
 pdfSources = (p, v) => {
   const sources = tagSources(p, v);
+  for (const id of ["title", "reg"]) {
+    const source = sources.get(id);
+    if (source && !source.templateKey && source.kind !== "missing") {
+      source.values = wordContext(p, v, id).values;
+      if (id === "reg") source.referenceLayout = true;
+    }
+  }
   // Apply the same validation to generated standard forms; uploaded scans stay originals.
   for (const s of p.systems)
     for (const a of s.acts) {

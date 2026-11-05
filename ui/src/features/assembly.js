@@ -366,6 +366,12 @@ assemblyRules = (p, plan) => {
       ? { values: { ...d.values, "Комплект.Наименование": name } }
       : {}),
   }));
+  const cover = intro.find((d) => d.id === "title");
+  if (cover?.kind === "html" && cover.values && ids.length > 1) {
+    cover.values["Комплект.Выполнение"] = ids.map((e) => e.name).join(", ");
+    cover.values["Комплект.Проект"] = p.cipher || "";
+    cover.html = defaultTitleHtml(cover.values);
+  }
   plan.volumes = [
     {
       ...first,

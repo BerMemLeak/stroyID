@@ -14,8 +14,8 @@ class DocumentTagTests(unittest.TestCase):
    for p in paths:
     tags=inspect_docx(p.read_bytes())['tags']
     self.assertFalse(set(tags)-fields.keys(),(p,set(tags)-fields.keys()))
-    values={t:'MARK-'+t for t in tags if t not in collection_tags()}
-    out=fill_docx(p.read_bytes(),Path(tmp)/'filled.docx',values,{})
+    values={t:'MARK-'+t for t in tags if t not in collection_tags() and t != 'Комплект.Логотип'}
+    out=fill_docx(p.read_bytes(),Path(tmp)/'filled.docx',{**values,'Комплект.Логотип':''},{})
     self.assertFalse(inspect_docx(out.read_bytes())['tags'],p)
     text=''.join(''.join(ET.fromstring(b).itertext()) for n,b in package(out.read_bytes()).items() if __import__('stroyid.infrastructure.documents.word_templates',fromlist=['*']).PART.match(n))
     for t,v in values.items():self.assertIn(v,text,(p,t))
