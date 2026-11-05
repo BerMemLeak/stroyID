@@ -314,7 +314,6 @@ A.downloadAssemblyPdf = async (d) => {
   );
   try {
     await new Promise((resolve) => setTimeout(resolve, 80));
-    await desktopFlush();
     const snapshot = pdfPlan(p, volumes);
     if (!(await confirmFrameWarnings([snapshot]))) return null;
     const r = await desktopTrack(
@@ -329,9 +328,6 @@ A.downloadAssemblyPdf = async (d) => {
       toast("Сохранение PDF отменено");
       return null;
     }
-    logH("Собран PDF: " + (all ? "вся ИД объекта" : vol.short));
-    save();
-    await desktopFlush();
     modal(
       "Комплект PDF сохранён",
       `<p><b>${r.pages} страниц · ${r.documents} документов</b></p><p>${esc(r.path)}</p><p class="small mut">В реестре указаны фактические страницы итогового PDF. Внутри есть закладки для томов и документов.</p>`,

@@ -5,10 +5,7 @@ let manualTyping = false,
   manualAcceptedHash = location.hash || "#/home";
 const manualChrome = refreshChrome;
 refreshChrome = () => {
-  if (manualTyping) {
-    renderStatus();
-    return;
-  }
+  if (manualTyping) return;
   manualChrome();
 };
 const manualApply = apply;
@@ -23,6 +20,7 @@ apply = (element, fromInput) => {
   }
 };
 function manualDiscard() {
+  Object.assign(APP, desktopSavedApp);
   const prefs = structuredClone(S.ui);
   S = reconcile(S, structuredClone(desktopSavedState));
   ensureDesktopUi(prefs);
@@ -30,30 +28,57 @@ function manualDiscard() {
   IX = null;
   ensureWorkspace();
   desktopDirty = false;
-  desktopPending = null;
   desktopError = "";
-  if (typeof desktopAuditDirty !== "undefined") desktopAuditDirty = false;
   renderStatus();
 }
-function manualDecision(proceed, onCancel = () => {}) {
-  if (!desktopDirty && !desktopSaving) {
-    return proceed();
+let dismissDraftPrompt = null;
+const closeDraftPrompt = closeModal;
+closeModal = () => {
+  const dismiss = dismissDraftPrompt;
+  dismissDraftPrompt = null;
+  closeDraftPrompt();
+  dismiss?.();
+};
+function chooseDraft(allowDiscard) {
+  return new Promise((resolve) => {
+    const choose = (choice) => () => {
+      dismissDraftPrompt = null;
+      closeModal();
+      resolve(choice);
+      return false;
+    };
+    modal(
+      "Сохранить изменения?",
+      "<p>На этой странице есть несохранённые изменения.</p>",
+      [
+        { l: "Отмена" },
+        ...(allowDiscard
+          ? [{ l: "Не сохранять", f: choose("discard") }]
+          : []),
+        { l: "Сохранить", c: "pri", f: choose("save") },
+      ],
+    );
+    dismissDraftPrompt = () => resolve("cancel");
+  });
+}
+async function manualDecision(proceed = () => true, allowDiscard = true) {
+  try {
+    if (desktopSaving) await desktopSaving;
+    while (desktopDirty) {
+      if (desktopClosing) desktop.flushPromptShown(true);
+      const choice = await chooseDraft(allowDiscard);
+      if (choice === "cancel") return false;
+      if (choice === "discard") manualDiscard();
+      else {
+        if (desktopClosing) desktop.flushPromptShown(false);
+        await desktopFlush();
+      }
+    }
+    return await proceed();
+  } catch (e) {
+    modal("Не удалось сохранить изменения", "<p>" + esc(e.message) + "</p>");
+    return false;
   }
-  return desktopFlush(true)
-    .then(() => proceed())
-    .catch((e) => {
-      modal("Не удалось сохранить изменения", "<p>" + esc(e.message) + "</p>", [
-        { l: "Остаться", f: onCancel },
-        {
-          l: "Повторить",
-          c: "pri",
-          f: () => {
-            manualDecision(proceed, onCancel);
-            return false;
-          },
-        },
-      ]);
-    });
 }
 const manualGo = go;
 go = (h) => {
@@ -62,7 +87,7 @@ go = (h) => {
     manualGo(h);
     return;
   }
-  manualDecision(() => {
+  return manualDecision(() => {
     manualAcceptedHash = h;
     manualGo(h);
   });
@@ -80,13 +105,14 @@ document.addEventListener(
 );
 window.addEventListener(
   "hashchange",
-  () => {
+  (event) => {
     const target = location.hash;
     if (target === manualAcceptedHash) return;
-    if (!desktopDirty) {
+    if (!desktopDirty && !desktopSaving) {
       manualAcceptedHash = target;
       return;
     }
+    event.stopImmediatePropagation();
     history.replaceState(null, "", manualAcceptedHash);
     manualDecision(() => {
       manualAcceptedHash = target;
@@ -96,7 +122,8 @@ window.addEventListener(
   true,
 );
 const manualModal = modal;
-modal = (title, body, buttons, cls) => {
+modal = (title, body, buttons = [{ l: "Закрыть" }], cls) => {
+  if (dismissDraftPrompt) closeModal();
   const creating =
     /^(Новый объект|Добавить систему|Новое выполнение|Новый журнал|Новый АИК|Создать АОСР|Новый материал|Общий материал)/.test(
       title,
@@ -110,7 +137,8 @@ modal = (title, body, buttons, cls) => {
       return {
         ...button,
         f: () => {
-          manualNavBypass = true;
+          const hadDraft = desktopDirty || desktopSaving;
+          manualNavBypass = !hadDraft;
           let value;
           try {
             value = fn();
@@ -118,47 +146,25 @@ modal = (title, body, buttons, cls) => {
             manualNavBypass = false;
           }
           if (value === false) return false;
-          A.desktopSave();
+          if (!hadDraft) A.desktopSave();
           return value;
         },
       };
     });
   manualModal(title, body, buttons, cls);
 };
-function manualSavedAction(action) {
-  return new Promise((resolve) =>
-    manualDecision(
-      async () => resolve(await action()),
-      () => resolve(null),
-    ),
-  );
-}
-let desktopAuditDirty = false;
-const manualAssembly = A.assemblyRun;
-A.assemblyRun = (d) =>
-  manualSavedAction(async () => {
-    const result = await manualAssembly(d);
-    if (result) {
-      await desktopFlush(true);
-      renderStatus();
-    }
-    return result;
-  });
-
 A.folderRefresh = () =>
-  manualSavedAction(async () => {
+  manualDecision(async () => {
     try {
-      acceptFolder(await nativeCall("poll"));
       desktopRemoteWaiting = false;
-      desktopDirty = false;
-      desktopPending = null;
-      render();
+      await desktopPollFolder();
+      if (!desktopDirty) render();
     } catch (e) {
       toast(e.message);
     }
   });
 A.baseSwitch = () =>
-  manualSavedAction(async () => {
+  manualDecision(async () => {
     try {
       await nativeCall("switchFolder");
     } catch (e) {
@@ -168,13 +174,12 @@ A.baseSwitch = () =>
 folderMutation = async (op, params) => {
   if (!guard()) return;
   try {
-    await desktopFlush(true);
+    if (!(await manualDecision(undefined, false))) return;
     const sent = structuredClone(S);
     const result = await desktopTrack(
       nativeCall(op, { ...params, user: APP.user }),
     );
     acceptFolder(result, sent);
-    if (desktopDirty) await desktopFlush(true);
     render();
     return result;
   } catch (e) {
@@ -604,7 +609,6 @@ A.objectDocAdd = (d) => {
           p[d.key].push(draft);
           commonDocumentDraft = null;
           commit("Добавлен общий документ «" + name + "»", p);
-          A.desktopSave();
           render();
         },
       },

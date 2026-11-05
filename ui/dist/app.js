@@ -1471,9 +1471,9 @@ if (!APP || APP.v !== 30)
       },
     ],
   };
-function saveApp() {
+function saveApp(app = APP) {
   try {
-    localStorage.setItem(LSA, JSON.stringify(APP));
+    localStorage.setItem(LSA, JSON.stringify(app));
   } catch (e) {}
 }
 let S = null,
@@ -3764,7 +3764,7 @@ function apply(t, fromInput) {
   if (ent === "app" && (f === "user" || f === "pc")) releaseMine(null);
   setPath(o, f, v);
   if (ent === "per" && f === "fio") o.fioShort = shortFio(v);
-  if (ent === "app") saveApp();
+  if (ent === "app" && !window.manualSavingMode) saveApp();
   if (ent === "root" && f === "meta.name") {
     const rc = APP.recent.find((x) => x.path === APP.current);
     if (rc) {
@@ -3788,7 +3788,7 @@ function apply(t, fromInput) {
     touch(o);
     logH("Изменён(а) " + entLabel(ent, o));
   }
-  save();
+  save({ field: true });
   if (t.dataset.rr && !fromInput) render();
   else refreshChrome();
 }
@@ -3877,7 +3877,8 @@ document.addEventListener("click", (e) => {
   if (mb) {
     const b = MB[+mb.dataset.mb];
     if (b && b.f) {
-      if (b.f() === false) return;
+      const currentButtons = MB;
+      if (b.f() === false || MB !== currentButtons) return;
     }
     closeModal();
     return;
@@ -7813,9 +7814,7 @@ blocksFor = (p, vol) => {
 /* Per-card folder persistence. */
 let desktop,
   desktopRevision = 0,
-  desktopPending = null,
   desktopSaving = null,
-  desktopTimer,
   desktopError = "",
   desktopJobs = new Set(),
   folderWarnings = [],
@@ -7984,7 +7983,7 @@ function acceptFolder(r, sent = null) {
   if (r.state) {
     const prefs = structuredClone(S?.ui || {});
     if (!r.preview) {
-      desktopSavedState = JSON.parse(JSON.stringify(r.state));
+      desktopSavedState = structuredClone(r.state);
       desktopSavedHeads = r.editHeads || desktopSavedHeads;
     }
     S = reconcile(S, sent ? rebase(sent, S, r.state) : r.state);
@@ -7999,6 +7998,7 @@ let desktopDirty = false,
   desktopEditVersion = 0,
   desktopSavedState = null,
   desktopSavedHeads = null,
+  desktopSavedApp = null,
   desktopUiDefaults = null,
   desktopRemoteWaiting = false;
 async function desktopPollFolder() {
@@ -8014,44 +8014,41 @@ async function desktopPollFolder() {
   acceptFolder(r);
   return before !== JSON.stringify(S);
 }
-save = function () {
-  IX = null;
+save = function ({ field = false } = {}) {
   if (!S || window.manualUiOnly) return;
-  if (typeof manualTyping === "undefined" || !manualTyping) ensureWorkspace();
-  desktopDirty = true;
-  desktopPending = true;
+  // The index holds references to records. Editing a field leaves those references valid.
+  if (!field) IX = null;
   desktopEditVersion++;
+  if (desktopDirty) return;
+  desktopDirty = true;
   renderStatus();
-  clearTimeout(desktopTimer);
-  desktopTimer = setTimeout(() => desktopFlush(true).catch(() => {}), 700);
 };
-async function desktopFlush(force = true) {
-  if (!force) return;
-  clearTimeout(desktopTimer);
+async function desktopFlush() {
   if (desktopSaving)
-    return desktopSaving.then((r) => (desktopDirty ? desktopFlush(true) : r));
+    return desktopSaving.then(() => desktopDirty ? desktopFlush() : undefined);
   if (!desktopDirty) return;
   desktopSaving = (async () => {
-    let audit;
     try {
-      if (typeof manualFlushAudit === "function") audit = manualFlushAudit();
+      ensureWorkspace();
       const version = desktopEditVersion,
-        state = JSON.parse(JSON.stringify(S));
+        state = structuredClone(S),
+        app = structuredClone(APP);
       const r = await nativeCall("save", {
         state,
         revision: desktopRevision,
         baseState: desktopSavedState,
         baseHeads: desktopSavedHeads,
-        user: APP.user,
+        user: app.user,
       });
-      acceptFolder(r, state);
-      audit = null;
-      desktopDirty = desktopEditVersion !== version;
-      desktopPending = desktopDirty;
+      const changedDuringSave = desktopEditVersion !== version;
+      acceptFolder(r, changedDuringSave ? state : null);
+      desktopDirty = changedDuringSave;
+      desktopSavedApp = app;
+      saveApp(app);
       desktopError = "";
       return r;
     } catch (e) {
-      if (typeof manualRestoreAudit === "function") desktopError = e.message;
+      desktopError = e.message;
       throw e;
     } finally {
       desktopSaving = null;
@@ -8101,7 +8098,6 @@ A.pickPdf = async (d) => {
     Object.assign(t, { file: f.name, fileKey: f.id, pages: f.pages });
     if ("stamped" in t) t.stamped = false;
     commit("Загружен документ «" + f.name + "»", o);
-    await desktopFlush();
     render();
   } catch (e) {
     toast(e.message);
@@ -8123,7 +8119,6 @@ A.schemeFile = async (d) => {
       updatedBy: APP.user,
     });
     commit("Загружена схема", s);
-    await desktopFlush();
     render();
   } catch (e) {
     toast(e.message);
@@ -8131,8 +8126,9 @@ A.schemeFile = async (d) => {
 };
 A.desktopSave = async () => {
   try {
-    await desktopFlush(true);
-    render();
+    document.activeElement?.blur();
+    await desktopFlush();
+    if (!desktopDirty) render();
   } catch (e) {
     modal("Изменения не сохранены", "<p>" + esc(e.message) + "</p>", [
       { l: "Закрыть" },
@@ -8197,11 +8193,10 @@ new QWebChannel(qt.webChannelTransport, async (channel) => {
     try {
       document.activeElement?.blur();
       closeModal();
-      if (typeof desktopAuditDirty !== "undefined" && desktopAuditDirty) save();
-      await desktopFlush(true);
       await Promise.all([...desktopJobs]);
-      await desktopFlush(true);
-      desktop.flushDone(true);
+      const leave = await manualDecision();
+      if (!leave) desktopClosing = false;
+      desktop.flushDone(leave);
     } catch (e) {
       desktopClosing = false;
       desktopError = e.message;
@@ -8219,13 +8214,14 @@ new QWebChannel(qt.webChannelTransport, async (channel) => {
     APP.user = APP.user || "Инженер ПТО";
     APP.current = r.root;
     APP.recent = [];
+    desktopSavedApp = structuredClone(APP);
     S = emptyDesktop();
     desktopUiDefaults = structuredClone(S.ui);
     acceptFolder(r);
     if (!location.hash) location.replace("#/home");
     if (!r.state) {
       save();
-      await desktopFlush(true);
+      await desktopFlush();
     }
     render();
     window.desktopReady = true;
@@ -8578,7 +8574,6 @@ A.downloadAssemblyPdf = async (d) => {
   );
   try {
     await new Promise((resolve) => setTimeout(resolve, 80));
-    await desktopFlush();
     const snapshot = pdfPlan(p, volumes);
     if (!(await confirmFrameWarnings([snapshot]))) return null;
     const r = await desktopTrack(
@@ -8593,9 +8588,6 @@ A.downloadAssemblyPdf = async (d) => {
       toast("Сохранение PDF отменено");
       return null;
     }
-    logH("Собран PDF: " + (all ? "вся ИД объекта" : vol.short));
-    save();
-    await desktopFlush();
     modal(
       "Комплект PDF сохранён",
       `<p><b>${r.pages} страниц · ${r.documents} документов</b></p><p>${esc(r.path)}</p><p class="small mut">В реестре указаны фактические страницы итогового PDF. Внутри есть закладки для томов и документов.</p>`,
@@ -10998,8 +10990,7 @@ A.tplAdd = async (d) => {
       date: today(),
     });
     commit("Загружен Word-шаблон «" + file.name + "»");
-    await desktopFlush();
-    toast("Word-файл сохранён в базе. Выберите его для сборки.");
+    toast("Шаблон добавлен. Нажмите «Сохранить изменения».");
   } catch (e) {
     toast(e.message);
   }
@@ -11018,7 +11009,6 @@ A.tplReplace = async (d) => {
       locked: false,
     });
     commit("Обновлён Word-шаблон «" + t.name + "»", t);
-    await desktopFlush();
   } catch (e) {
     toast(e.message);
   }
@@ -11039,7 +11029,6 @@ A.wordSelect = async (d) => {
   if (!t?.fileKey) return;
   map[d.section] = t.id;
   commit("Выбран Word-шаблон «" + t.name + "» для " + p.name, p);
-  await desktopFlush().catch((e) => toast(e.message));
 };
 A.wordPreview = async (d) => {
   try {
@@ -11130,7 +11119,6 @@ A.wordSample = async (d) => {
     };
     S.lib.templates.push(t);
     commit("Создан образец Word-шаблона", t);
-    await desktopFlush();
     toast("Образец создан. Откройте в Word и настройте оформление.");
   } catch (e) {
     toast("Не удалось создать образец: " + e.message);
@@ -11370,7 +11358,6 @@ A.objectPhoto = async (d) => {
     if (!img) return;
     proj(d.id).photo = img;
     save();
-    await desktopFlush();
     render();
   } catch (e) {
     toast(e.message);
@@ -12482,7 +12469,7 @@ function frameRowsTarget(d) {
 function saveFrameRows(d, el) {
   const { s, item } = frameRowsTarget(d);
   touch(s);
-  save();
+  save({ field: true });
   const box = el?.closest("[data-frame-rows]");
   if (box) box.outerHTML = frameSignerControls(s, item);
 }
@@ -12553,7 +12540,7 @@ function updateFrameRow(el) {
   rows[i][key] = el.value;
   record.frameRows = rows;
   touch(s);
-  save();
+  save({ field: true });
 }
 document.addEventListener("input", (event) => {
   if (event.target.dataset.frameRowField === "role")
@@ -12788,7 +12775,7 @@ document.addEventListener("input", (event) => {
   if (el.value.trim()) record.sheetPlaces[String(page)] = el.value;
   else delete record.sheetPlaces[String(page)];
   touch(s);
-  save();
+  save({ field: true });
   refreshDrawingSheetCaptions(el.dataset);
 });
 
@@ -12882,7 +12869,6 @@ A.drawingPreview = async (d) => {
     page = Number(root.querySelector("#drawing-page")?.value || 1);
   if (status) status.textContent = "Обновление предпросмотра…";
   try {
-    await desktopFlush();
     const r = await desktopTrack(
       nativeCall("previewDrawing", {
         key: item.record.fileKey,
@@ -13789,7 +13775,6 @@ A.assemblyRun = async (d) => {
     [],
   );
   try {
-    await desktopFlush();
     let op, params;
     const prefix = slug(p.name);
     if (c.scenario === "11") {
@@ -14034,7 +14019,6 @@ A.assemblySnapshot = async (d) => {
   }
   pdfExportBusy = true;
   try {
-    await desktopFlush();
     const { es, systems } = assemblySelection(p, c);
     if (!es.length) throw Error("Выберите выполнение");
     const state = structuredClone(S);
@@ -14086,10 +14070,7 @@ let manualTyping = false,
   manualAcceptedHash = location.hash || "#/home";
 const manualChrome = refreshChrome;
 refreshChrome = () => {
-  if (manualTyping) {
-    renderStatus();
-    return;
-  }
+  if (manualTyping) return;
   manualChrome();
 };
 const manualApply = apply;
@@ -14104,6 +14085,7 @@ apply = (element, fromInput) => {
   }
 };
 function manualDiscard() {
+  Object.assign(APP, desktopSavedApp);
   const prefs = structuredClone(S.ui);
   S = reconcile(S, structuredClone(desktopSavedState));
   ensureDesktopUi(prefs);
@@ -14111,30 +14093,57 @@ function manualDiscard() {
   IX = null;
   ensureWorkspace();
   desktopDirty = false;
-  desktopPending = null;
   desktopError = "";
-  if (typeof desktopAuditDirty !== "undefined") desktopAuditDirty = false;
   renderStatus();
 }
-function manualDecision(proceed, onCancel = () => {}) {
-  if (!desktopDirty && !desktopSaving) {
-    return proceed();
+let dismissDraftPrompt = null;
+const closeDraftPrompt = closeModal;
+closeModal = () => {
+  const dismiss = dismissDraftPrompt;
+  dismissDraftPrompt = null;
+  closeDraftPrompt();
+  dismiss?.();
+};
+function chooseDraft(allowDiscard) {
+  return new Promise((resolve) => {
+    const choose = (choice) => () => {
+      dismissDraftPrompt = null;
+      closeModal();
+      resolve(choice);
+      return false;
+    };
+    modal(
+      "Сохранить изменения?",
+      "<p>На этой странице есть несохранённые изменения.</p>",
+      [
+        { l: "Отмена" },
+        ...(allowDiscard
+          ? [{ l: "Не сохранять", f: choose("discard") }]
+          : []),
+        { l: "Сохранить", c: "pri", f: choose("save") },
+      ],
+    );
+    dismissDraftPrompt = () => resolve("cancel");
+  });
+}
+async function manualDecision(proceed = () => true, allowDiscard = true) {
+  try {
+    if (desktopSaving) await desktopSaving;
+    while (desktopDirty) {
+      if (desktopClosing) desktop.flushPromptShown(true);
+      const choice = await chooseDraft(allowDiscard);
+      if (choice === "cancel") return false;
+      if (choice === "discard") manualDiscard();
+      else {
+        if (desktopClosing) desktop.flushPromptShown(false);
+        await desktopFlush();
+      }
+    }
+    return await proceed();
+  } catch (e) {
+    modal("Не удалось сохранить изменения", "<p>" + esc(e.message) + "</p>");
+    return false;
   }
-  return desktopFlush(true)
-    .then(() => proceed())
-    .catch((e) => {
-      modal("Не удалось сохранить изменения", "<p>" + esc(e.message) + "</p>", [
-        { l: "Остаться", f: onCancel },
-        {
-          l: "Повторить",
-          c: "pri",
-          f: () => {
-            manualDecision(proceed, onCancel);
-            return false;
-          },
-        },
-      ]);
-    });
 }
 const manualGo = go;
 go = (h) => {
@@ -14143,7 +14152,7 @@ go = (h) => {
     manualGo(h);
     return;
   }
-  manualDecision(() => {
+  return manualDecision(() => {
     manualAcceptedHash = h;
     manualGo(h);
   });
@@ -14161,13 +14170,14 @@ document.addEventListener(
 );
 window.addEventListener(
   "hashchange",
-  () => {
+  (event) => {
     const target = location.hash;
     if (target === manualAcceptedHash) return;
-    if (!desktopDirty) {
+    if (!desktopDirty && !desktopSaving) {
       manualAcceptedHash = target;
       return;
     }
+    event.stopImmediatePropagation();
     history.replaceState(null, "", manualAcceptedHash);
     manualDecision(() => {
       manualAcceptedHash = target;
@@ -14177,7 +14187,8 @@ window.addEventListener(
   true,
 );
 const manualModal = modal;
-modal = (title, body, buttons, cls) => {
+modal = (title, body, buttons = [{ l: "Закрыть" }], cls) => {
+  if (dismissDraftPrompt) closeModal();
   const creating =
     /^(Новый объект|Добавить систему|Новое выполнение|Новый журнал|Новый АИК|Создать АОСР|Новый материал|Общий материал)/.test(
       title,
@@ -14191,7 +14202,8 @@ modal = (title, body, buttons, cls) => {
       return {
         ...button,
         f: () => {
-          manualNavBypass = true;
+          const hadDraft = desktopDirty || desktopSaving;
+          manualNavBypass = !hadDraft;
           let value;
           try {
             value = fn();
@@ -14199,47 +14211,25 @@ modal = (title, body, buttons, cls) => {
             manualNavBypass = false;
           }
           if (value === false) return false;
-          A.desktopSave();
+          if (!hadDraft) A.desktopSave();
           return value;
         },
       };
     });
   manualModal(title, body, buttons, cls);
 };
-function manualSavedAction(action) {
-  return new Promise((resolve) =>
-    manualDecision(
-      async () => resolve(await action()),
-      () => resolve(null),
-    ),
-  );
-}
-let desktopAuditDirty = false;
-const manualAssembly = A.assemblyRun;
-A.assemblyRun = (d) =>
-  manualSavedAction(async () => {
-    const result = await manualAssembly(d);
-    if (result) {
-      await desktopFlush(true);
-      renderStatus();
-    }
-    return result;
-  });
-
 A.folderRefresh = () =>
-  manualSavedAction(async () => {
+  manualDecision(async () => {
     try {
-      acceptFolder(await nativeCall("poll"));
       desktopRemoteWaiting = false;
-      desktopDirty = false;
-      desktopPending = null;
-      render();
+      await desktopPollFolder();
+      if (!desktopDirty) render();
     } catch (e) {
       toast(e.message);
     }
   });
 A.baseSwitch = () =>
-  manualSavedAction(async () => {
+  manualDecision(async () => {
     try {
       await nativeCall("switchFolder");
     } catch (e) {
@@ -14249,13 +14239,12 @@ A.baseSwitch = () =>
 folderMutation = async (op, params) => {
   if (!guard()) return;
   try {
-    await desktopFlush(true);
+    if (!(await manualDecision(undefined, false))) return;
     const sent = structuredClone(S);
     const result = await desktopTrack(
       nativeCall(op, { ...params, user: APP.user }),
     );
     acceptFolder(result, sent);
-    if (desktopDirty) await desktopFlush(true);
     render();
     return result;
   } catch (e) {
@@ -14685,7 +14674,6 @@ A.objectDocAdd = (d) => {
           p[d.key].push(draft);
           commonDocumentDraft = null;
           commit("Добавлен общий документ «" + name + "»", p);
-          A.desktopSave();
           render();
         },
       },
@@ -16168,7 +16156,7 @@ document.addEventListener("input", (event) => {
     const row = a.quantityRows.find((r) => r.id === el.dataset.quantityRow);
     if (row) row[el.dataset.quantityField] = el.value;
   }
-  save();
+  save({ field: true });
 });
 document.addEventListener("change", (event) => {
   const id = event.target.dataset.quantityToggle;
@@ -16184,7 +16172,6 @@ A.quantityDownload = async (d) => {
     if (!v) throw Error("Назначьте акту комплект подписантов");
     const source = quantitySource(p, s, a, v);
     if (source.kind === "missing") throw Error(source.error);
-    await desktopFlush();
     const result = await desktopTrack(
       nativeCall("saveGeneratedDocx", {
         ...source,
@@ -17232,7 +17219,6 @@ nativeCall = async (op, params = {}) => {
           a.registers[k] = { ...a.registers[k], enabled: true };
       }
       commit("Вынесены перечни АОСР в реестры");
-      await desktopFlush();
       for (const plan of params.plans?.map((x) => x.plan) || [params.plan])
         for (const v of plan.volumes)
           for (const doc of v.documents) {
@@ -17325,7 +17311,6 @@ A.printRun = async () => {
   };
   pdfExportBusy = true;
   try {
-    await desktopFlush();
     if (!(await confirmFrameWarnings(plans.map((x) => x.plan)))) return;
     modal(
       "Подготовка печатного комплекта",
@@ -17381,7 +17366,6 @@ let materialImportPreview = null;
 A.materialsImport = async () => {
   if (!guard("lib")) return;
   try {
-    await desktopFlush();
     const r = await nativeCall("previewMaterialsImport");
     if (!r) return;
     materialImportPreview = r;
@@ -17424,7 +17408,7 @@ A.materialsCommit = async () => {
     return;
   }
   try {
-    await desktopFlush();
+    if (!(await manualDecision(undefined, false))) return;
     const result = await desktopTrack(
       nativeCall("commitMaterialsImport", {
         token: materialImportPreview.token,
@@ -17448,7 +17432,7 @@ A.materialsCommit = async () => {
 
 ;
 // Source: features/navigation.js
-/* Session navigation: use the existing save-before-navigation flow. */
+/* Session navigation: use the draft confirmation flow. */
 let navigationEntries = [location.hash || "#/home"],
   navigationIndex = 0;
 function navigationObserve() {
@@ -17486,7 +17470,8 @@ A.navigationBack = () => {
   return manualDecision(() => {
     if (navigationIndex > 0) navigationIndex--;
     else navigationEntries = [target];
-    go(target);
+    manualAcceptedHash = target;
+    manualGo(target);
   });
 };
 const navigationRender = render;

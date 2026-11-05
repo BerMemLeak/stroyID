@@ -274,7 +274,7 @@ function apply(t, fromInput) {
   if (ent === "app" && (f === "user" || f === "pc")) releaseMine(null);
   setPath(o, f, v);
   if (ent === "per" && f === "fio") o.fioShort = shortFio(v);
-  if (ent === "app") saveApp();
+  if (ent === "app" && !window.manualSavingMode) saveApp();
   if (ent === "root" && f === "meta.name") {
     const rc = APP.recent.find((x) => x.path === APP.current);
     if (rc) {
@@ -298,7 +298,7 @@ function apply(t, fromInput) {
     touch(o);
     logH("Изменён(а) " + entLabel(ent, o));
   }
-  save();
+  save({ field: true });
   if (t.dataset.rr && !fromInput) render();
   else refreshChrome();
 }
@@ -387,7 +387,8 @@ document.addEventListener("click", (e) => {
   if (mb) {
     const b = MB[+mb.dataset.mb];
     if (b && b.f) {
-      if (b.f() === false) return;
+      const currentButtons = MB;
+      if (b.f() === false || MB !== currentButtons) return;
     }
     closeModal();
     return;

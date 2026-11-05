@@ -296,7 +296,7 @@ document.addEventListener("input", (event) => {
     const row = a.quantityRows.find((r) => r.id === el.dataset.quantityRow);
     if (row) row[el.dataset.quantityField] = el.value;
   }
-  save();
+  save({ field: true });
 });
 document.addEventListener("change", (event) => {
   const id = event.target.dataset.quantityToggle;
@@ -312,7 +312,6 @@ A.quantityDownload = async (d) => {
     if (!v) throw Error("Назначьте акту комплект подписантов");
     const source = quantitySource(p, s, a, v);
     if (source.kind === "missing") throw Error(source.error);
-    await desktopFlush();
     const result = await desktopTrack(
       nativeCall("saveGeneratedDocx", {
         ...source,

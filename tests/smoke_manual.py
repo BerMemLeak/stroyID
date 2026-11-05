@@ -1,4 +1,4 @@
-"""Auto-save, cancelled creation, saved navigation, scoped documents and event-driven idle checks."""
+"""Manual save, cancelled creation, guarded navigation, scoped documents and event-driven idle checks."""
 import json,sys,tempfile,time,traceback,io
 from pathlib import Path
 from unittest.mock import patch
@@ -24,7 +24,7 @@ def ready(value):
  history.replaceState(null,'','#/lib/orgs/'+auditOrg.id);manualAcceptedHash=location.hash;render();const orgInput=document.querySelector('[data-ent="org"][data-f="short"]'),historyBefore=JSON.stringify(S.history),auditName='Ремстрой';
  for(let i=1;i<=auditName.length;i++){orgInput.value=auditName.slice(0,i);orgInput.dispatchEvent(new Event('input',{bubbles:true}));}
  const fullInput=document.querySelector('[data-ent="org"][data-f="full"]');fullInput.value='ООО Ремстрой';fullInput.dispatchEvent(new Event('input',{bubbles:true}));
- if(JSON.stringify(S.history)!==historyBefore)throw Error('History records draft letters');await new Promise(r=>setTimeout(r,250));const orgStored=await nativeCall('load');if(orgStored.state.lib.orgs[0].short!=='Новая организация'||JSON.stringify(orgStored.state.history)!==historyBefore)throw Error('Draft organization or history persisted');
+ if(JSON.stringify(S.history)!==historyBefore)throw Error('History records draft letters');await new Promise(r=>setTimeout(r,1000));const orgStored=await nativeCall('load');if(orgStored.state.lib.orgs[0].short!=='Новая организация'||JSON.stringify(orgStored.state.history)!==historyBefore)throw Error('Draft organization or history persisted');
  await A.desktopSave();if(S.history.length)throw Error('History should be disabled');
  const savedHistory=JSON.stringify(S.history);const discardInput=document.querySelector('[data-ent="org"][data-f="short"]');discardInput.value='Отменённое имя';discardInput.dispatchEvent(new Event('input',{bubbles:true}));manualDiscard();if(JSON.stringify(S.history)!==savedHistory)throw Error('Discard kept draft history');await A.desktopSave();if(JSON.stringify(S.history)!==savedHistory)throw Error('Discarded history reappeared');
 
@@ -34,8 +34,10 @@ def ready(value):
  if(!document.querySelector('#content [data-ent="act"][data-f="place"]'))throw Error('Act place input missing');if(document.querySelector('#content').innerText.includes('Как в комплекта'))throw Error('Signer grammar remains');if(!window.desktopReady)throw Error('Channel not ready');
  if(document.querySelectorAll('#tree a[href^="#/s/'+s.id+'/"]').length)throw Error('Duplicate sidebar sections remain');
  const tree=document.querySelector('#tree .tn'),top=document.querySelector('#top input');let input=document.querySelector('[data-ent="act"][data-f="works"]');for(let i=0;i<30;i++){input.value='Несохранённый ввод '+i;input.dispatchEvent(new Event('input',{bubbles:true}));}
- if(tree!==document.querySelector('#tree .tn')||top!==document.querySelector('#top input'))throw Error('Typing rebuilt navigation');await new Promise(r=>setTimeout(r,1300));const stored=await nativeCall('load');if(stored.state.projects[0].systems[0].acts[0].works!=='Несохранённый ввод 29')throw Error('Automatic save missing');
- go('#/lib/base');await new Promise(r=>setTimeout(r,200));if(document.querySelector('.dlg')||location.hash!=='#/lib/base')throw Error('Saved navigation blocked');
+ if(tree!==document.querySelector('#tree .tn')||top!==document.querySelector('#top input'))throw Error('Typing rebuilt navigation');await new Promise(r=>setTimeout(r,1300));const stored=await nativeCall('load');if(stored.state.projects[0].systems[0].acts[0].works!=='Первичные работы')throw Error('Draft persisted before explicit save');
+ const choose=(label)=>[...document.querySelectorAll('.dlg [data-mb]')].find(b=>b.textContent===label).click();
+ const stay=go('#/lib/base');choose('Отмена');await stay;if(location.hash!=='#/a/'+a.id||a.works!=='Несохранённый ввод 29')throw Error('Cancel lost draft or navigated');
+ const leave=go('#/lib/base');choose('Не сохранять');await leave;if(location.hash!=='#/lib/base'||a.works!=='Первичные работы'||desktopDirty)throw Error('Discard did not restore saved state');
  history.replaceState(null,'','#/a/'+a.id);manualAcceptedHash=location.hash;render();input=document.querySelector('[data-ent="act"][data-f="works"]');input.value='Сохранено кнопкой';input.dispatchEvent(new Event('input',{bubbles:true}));await A.desktopSave();if(desktopDirty)throw Error('Explicit save left dirty state');
  A.newMat({p:p.id});document.querySelector('#new-material-name').value='Незавершённый материал';window.dispatchEvent(new Event('blur'));document.dispatchEvent(new Event('visibilitychange'));await new Promise(r=>setTimeout(r,500));if(p.materials.length||S.lib.base.length)throw Error('Alt-Tab created material');closeModal();
  A.newMat({p:p.id});document.querySelector('#new-material-name').value='Свой материал';clickCreate();await desktopFlush(true);const own=p.materials[0];if(own.baseId||S.lib.base.length)throw Error('Own material became global');A.rowAdd({ent:'mat',id:own.id,p:'docs',k:'doc'});own.docs[0].type='Паспорт';await A.pickPdf({ent:'mat',id:own.id,p:'docs.#'+own.docs[0].id});await A.desktopSave();if(!own.docs[0].fileKey.startsWith('Объект один/'))throw Error('Object passport is outside object');
@@ -63,18 +65,22 @@ def finish_idle():
   assert store.metrics['saves']==idle['saves'],(idle,store.metrics)
   assert store.metrics['hashed_files']==idle['hashed_files'],(idle,store.metrics)
   assert usage<10,usage
-  report={'version':'0.9.4','idle_seconds':round(elapsed,3),'main_process_cpu_percent_one_core':round(usage,3),'idle_storage_loads':0,'idle_storage_saves':0,'idle_document_hashes':0,'debounced_auto_save':True,'typing_no_navigation_rebuild':True,'history_disabled':True,'object_and_common_scope':True}
+  report={'version':'0.9.4','idle_seconds':round(elapsed,3),'main_process_cpu_percent_one_core':round(usage,3),'idle_storage_loads':0,'idle_storage_saves':0,'idle_document_hashes':0,'manual_save':True,'typing_no_navigation_rebuild':True,'history_disabled':True,'object_and_common_scope':True}
   Path('validation').mkdir(exist_ok=True);Path('validation/manual-and-idle.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8');window.grab().save(str(root/'manual-ui.png'))
-  print('PASS: debounced auto-save, no per-letter persistence/chrome rebuild, cancelled Alt-Tab draft, prompt-free saved navigation, private/common passports and shared edits, automatic HTML/Word address, icon, migration review; idle CPU',round(usage,3),'%, zero storage refreshes/hashes')
-  # Closing is the only automatic commit: keep this edit deliberately unsaved.
+  print('PASS: manual save, no per-letter persistence/chrome rebuild, cancelled Alt-Tab draft, cancel/discard navigation, private/common passports and shared edits, automatic HTML/Word address, icon, migration review; idle CPU',round(usage,3),'%, zero storage refreshes/hashes')
+  # Check that an explicit save at close can fail without losing the draft.
   stage=3
   global original_save
   original_save=store.save
   def rejected(*args,**kwargs):raise OSError('Проверочный отказ сохранения')
   store.save=rejected
-  window.page.runJavaScript("S.meta.name='Автосохранено при закрытии';const e=document.createElement('input');Object.assign(e.dataset,{ent:'org',id:'o-audit',f:'short'});e.value='Компания при закрытии';apply(e,true);save()",lambda _:window.close())
+  window.page.runJavaScript("S.meta.name='Автосохранено при закрытии';const e=document.createElement('input');Object.assign(e.dataset,{ent:'org',id:'o-audit',f:'short'});e.value='Компания при закрытии';apply(e,true);save()",lambda _:request_close_save())
   QTimer.singleShot(1000,check_failed_close)
  except Exception:fail(traceback.format_exc())
+
+def request_close_save():
+ window.close()
+ QTimer.singleShot(250, lambda: window.page.runJavaScript("document.querySelector('.dlg .df .pri')?.click()"))
 
 def check_failed_close():
  global stage
@@ -84,7 +90,7 @@ def check_failed_close():
    global stage
    try:
     assert value is True,'Failed close lost entered data'
-    store.save=original_save;stage=4;print('PASS: failed exit save keeps window and unsaved data; retry succeeds');window.close()
+    store.save=original_save;stage=4;print('PASS: failed exit save keeps window and unsaved data; retry succeeds');request_close_save()
    except Exception:fail(traceback.format_exc())
   window.page.runJavaScript("S.meta.name==='Автосохранено при закрытии'&&desktopDirty&&desktopError.includes('Проверочный отказ')&&!S.history.some(h=>h.text.includes('Компания при закрытии'))",receive_state)
  except Exception:fail(traceback.format_exc())
@@ -108,5 +114,5 @@ timer=QTimer();timer.timeout.connect(poll);timer.start(100);QTimer.singleShot(90
 with patch('stroyid.presentation.desktop.window.QMessageBox.warning',return_value=None),patch('stroyid.presentation.desktop.window.QFileDialog.getOpenFileName',side_effect=[(str(root/'private.pdf'),'PDF'),(str(root/'common.pdf'),'PDF')]):code=app.exec()
 dispose_window(window)
 if code==0:
- reopened=Store(store.root).load()['state'];assert reopened['meta']['name']=='Автосохранено при закрытии';assert not reopened['history'];print('PASS: automatic exit save and reopen; no history after failed save and retry')
+ reopened=Store(store.root).load()['state'];assert reopened['meta']['name']=='Автосохранено при закрытии';assert not reopened['history'];print('PASS: confirmed exit save and reopen; no history after failed save and retry')
 store.close();temp.cleanup();print('\n'.join(errors));sys.exit(code)

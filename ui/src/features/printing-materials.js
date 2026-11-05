@@ -231,7 +231,6 @@ nativeCall = async (op, params = {}) => {
           a.registers[k] = { ...a.registers[k], enabled: true };
       }
       commit("Вынесены перечни АОСР в реестры");
-      await desktopFlush();
       for (const plan of params.plans?.map((x) => x.plan) || [params.plan])
         for (const v of plan.volumes)
           for (const doc of v.documents) {
@@ -324,7 +323,6 @@ A.printRun = async () => {
   };
   pdfExportBusy = true;
   try {
-    await desktopFlush();
     if (!(await confirmFrameWarnings(plans.map((x) => x.plan)))) return;
     modal(
       "Подготовка печатного комплекта",
@@ -380,7 +378,6 @@ let materialImportPreview = null;
 A.materialsImport = async () => {
   if (!guard("lib")) return;
   try {
-    await desktopFlush();
     const r = await nativeCall("previewMaterialsImport");
     if (!r) return;
     materialImportPreview = r;
@@ -423,7 +420,7 @@ A.materialsCommit = async () => {
     return;
   }
   try {
-    await desktopFlush();
+    if (!(await manualDecision(undefined, false))) return;
     const result = await desktopTrack(
       nativeCall("commitMaterialsImport", {
         token: materialImportPreview.token,

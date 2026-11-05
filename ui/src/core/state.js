@@ -29,9 +29,9 @@ if (!APP || APP.v !== 30)
       },
     ],
   };
-function saveApp() {
+function saveApp(app = APP) {
   try {
-    localStorage.setItem(LSA, JSON.stringify(APP));
+    localStorage.setItem(LSA, JSON.stringify(app));
   } catch (e) {}
 }
 let S = null,

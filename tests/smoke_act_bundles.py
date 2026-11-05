@@ -52,7 +52,7 @@ def ready(value):
  window.page.runJavaScript(script)
 def receive(raw):
  global stage
- if not raw:return
+ if stage!=1 or not raw:return
  try:
   result=json.loads(raw);assert not result.get('error'),result.get('error');assert not window.page.console_errors,window.page.console_errors
   prepared=prepare_export(store,result['plan']);documents=prepared['volumes'][0]['documents'];assert [d['id'] for d in documents if d['id'] not in ('title','reg')]==result['ids']
@@ -60,7 +60,7 @@ def receive(raw):
   assert [tuple(d['reader'].pages[d['selection'][0]].mediabox)[2:] for d in ranges]==[(210,297),(420,297)]
   output=write_export(prepared,root/'bundle.pdf',store);assert len(PdfReader(output['path']).pages)==output['pages']
   assert [d['sourceBlock'] for d in documents if d.get('ownerActId')]==['schemes','photos','quality']*2
-  stage=2;timer.stop();print('PASS: act bundles, selected ranges, profile ordering, preview, quality rules, exclusions, separate schemes, single act, native PDF');window.close()
+  stage=2;timer.stop();print('PASS: act bundles, selected ranges, profile ordering, preview, quality rules, exclusions, separate schemes, single act, native PDF');app.quit()
  except Exception:fail(traceback.format_exc())
 def poll():
  if not stage:window.page.runJavaScript('window.desktopReady',ready)

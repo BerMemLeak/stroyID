@@ -96,6 +96,7 @@ def build(*, quick=False):
         command([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-v'], 120, stage=report['stage'])
         smoke_checks = [
             ('qt-word-templates', 'smoke_word.py', 120),
+            ('qt-manual-save-and-idle', 'smoke_manual.py', 150),
         ] if quick else [
             ('document-tags', 'smoke_document_tags.py', 120),
             ('qt-interface', 'smoke_qt.py', 120),

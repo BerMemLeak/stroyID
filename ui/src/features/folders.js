@@ -131,7 +131,6 @@ A.objectPhoto = async (d) => {
     if (!img) return;
     proj(d.id).photo = img;
     save();
-    await desktopFlush();
     render();
   } catch (e) {
     toast(e.message);

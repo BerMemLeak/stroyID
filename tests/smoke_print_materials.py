@@ -39,7 +39,7 @@ script=r'''(async()=>{try{
  assert(a.materials.join(',')===ids,'Act material IDs changed');
  for(const id of ['share-one','share-two']){const m=p.materials.find(x=>x.id===id);assert(m.baseId&&m.docs.length===0&&mDocs(m).length===2,'Promotion lost documents or object links');}
  const loaded=await nativeCall('load');assert(!loaded.conflicts.length,'Promotion created conflicts');
- go('#/a/'+a.id);render();assert(document.querySelectorAll('[data-act-register]').length===3,'Register controls missing');
+ await A.desktopSave();go('#/a/'+a.id);render();assert(document.querySelectorAll('[data-act-register]').length===3,'Register controls missing');
  const v=volumeList(p).find(v=>v.s?.id===s.id),plan=pdfPlan(p,[v]),doc=plan.volumes[0].documents.find(d=>d.id==='a'+a.id);
  assert(doc.actRegister?.actId===a.id,'No act metadata');
  A.printSetup({p:p.id});assert(!document.querySelector('#print-number').checked,'Page numbers should default off');

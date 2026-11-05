@@ -747,7 +747,6 @@ A.assemblyRun = async (d) => {
     [],
   );
   try {
-    await desktopFlush();
     let op, params;
     const prefix = slug(p.name);
     if (c.scenario === "11") {
@@ -992,7 +991,6 @@ A.assemblySnapshot = async (d) => {
   }
   pdfExportBusy = true;
   try {
-    await desktopFlush();
     const { es, systems } = assemblySelection(p, c);
     if (!es.length) throw Error("Выберите выполнение");
     const state = structuredClone(S);
