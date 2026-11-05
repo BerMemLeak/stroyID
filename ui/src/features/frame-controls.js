@@ -172,7 +172,7 @@ function frameRowsTarget(d) {
 function saveFrameRows(d, el) {
   const { s, item } = frameRowsTarget(d);
   touch(s);
-  save();
+  save({ field: true });
   const box = el?.closest("[data-frame-rows]");
   if (box) box.outerHTML = frameSignerControls(s, item);
 }
@@ -243,7 +243,7 @@ function updateFrameRow(el) {
   rows[i][key] = el.value;
   record.frameRows = rows;
   touch(s);
-  save();
+  save({ field: true });
 }
 document.addEventListener("input", (event) => {
   if (event.target.dataset.frameRowField === "role")
@@ -478,7 +478,7 @@ document.addEventListener("input", (event) => {
   if (el.value.trim()) record.sheetPlaces[String(page)] = el.value;
   else delete record.sheetPlaces[String(page)];
   touch(s);
-  save();
+  save({ field: true });
   refreshDrawingSheetCaptions(el.dataset);
 });
 
@@ -572,7 +572,6 @@ A.drawingPreview = async (d) => {
     page = Number(root.querySelector("#drawing-page")?.value || 1);
   if (status) status.textContent = "Обновление предпросмотра…";
   try {
-    await desktopFlush();
     const r = await desktopTrack(
       nativeCall("previewDrawing", {
         key: item.record.fileKey,

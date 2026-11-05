@@ -1,4 +1,4 @@
-/* Session navigation: use the existing save-before-navigation flow. */
+/* Session navigation: use the draft confirmation flow. */
 let navigationEntries = [location.hash || "#/home"],
   navigationIndex = 0;
 function navigationObserve() {
@@ -36,7 +36,8 @@ A.navigationBack = () => {
   return manualDecision(() => {
     if (navigationIndex > 0) navigationIndex--;
     else navigationEntries = [target];
-    go(target);
+    manualAcceptedHash = target;
+    manualGo(target);
   });
 };
 const navigationRender = render;

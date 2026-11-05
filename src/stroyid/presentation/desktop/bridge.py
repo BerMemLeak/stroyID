@@ -157,6 +157,14 @@ class Bridge(QObject):
             )
 
     @Slot(bool)
+    def flushPromptShown(self, shown):
+        if self.window.closing:
+            if shown:
+                self.window.close_timer.stop()
+            else:
+                self.window.close_timer.start(45000)
+
+    @Slot(bool)
     def flushDone(self, success):
         if self.window.closing:
             self.window.close_timer.stop()

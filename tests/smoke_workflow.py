@@ -1,4 +1,4 @@
-"""Real WebEngine regression coverage for shared certificates and automatic saving."""
+"""Real WebEngine regression coverage for shared certificates and manual saving."""
 import json, sys, tempfile, traceback
 from pathlib import Path
 from unittest.mock import patch
@@ -30,8 +30,8 @@ def ready(value):
  const loaded=await nativeCall('load');assert(loaded.state.lib.quality.length===1&&loaded.state.projects[0].materials[0].docIds[0]===q.id,'Shared references lost after persistence');
  A.actMatAdd({id:a.id});const search=document.querySelector('[data-material-search]');search.value='CERT-UPDATED';search.dispatchEvent(new Event('input',{bubbles:true}));assert(document.querySelectorAll('[data-material-row]:not([hidden])').length===2,'Search by shared certificate');A.materialSelectVisible();MB[1].f();closeModal();assert(a.materials.length===2,'Multiple material selection');
  A.systemMatPick({s:s.id});const cat=document.querySelector('[data-material-category]');cat.value='Кабели';cat.dispatchEvent(new Event('change',{bubbles:true}));A.materialSelectVisible();MB[1].f();closeModal();assert(s.materialIds.join()==='mat-c','Category filter and multi select');
- history.replaceState(null,'','#/a/'+a.id);manualAcceptedHash=location.hash;render();const field=document.querySelector('[data-ent="act"][data-f="works"]');field.value='Автоматически сохранённые работы';field.dispatchEvent(new Event('input',{bubbles:true}));await waitFor(()=>!desktopDirty&&!desktopSaving,'Debounced save did not finish');assert((await nativeCall('load')).state.projects[0].systems[0].acts[0].works===field.value,'Auto-save missing on disk');
- field.value='Сохранение перед переходом';field.dispatchEvent(new Event('input',{bubbles:true}));go('#/lib/base');await waitFor(()=>location.hash==='#/lib/base','Saved navigation did not finish');assert(location.hash==='#/lib/base'&&!document.querySelector('.dlg'),'Navigation prompts despite auto-save');
+ history.replaceState(null,'','#/a/'+a.id);manualAcceptedHash=location.hash;render();const field=document.querySelector('[data-ent="act"][data-f="works"]');field.value='Сохранённые кнопкой работы';field.dispatchEvent(new Event('input',{bubbles:true}));await A.desktopSave();assert((await nativeCall('load')).state.projects[0].systems[0].acts[0].works===field.value,'Explicit save missing on disk');
+ const nextField=document.querySelector('[data-ent="act"][data-f="works"]');nextField.value='Сохранение перед переходом';nextField.dispatchEvent(new Event('input',{bubbles:true}));go('#/lib/base');document.querySelector('.dlg .df .pri').click();await waitFor(()=>location.hash==='#/lib/base','Saved navigation did not finish');assert(location.hash==='#/lib/base'&&!document.querySelector('.dlg'),'Navigation did not finish after confirming save');
  const before=s.sketches.length;A.sketchAdd({s:s.id});closeModal();await delay(900);assert(s.sketches.length===before,'Cancelled scheme created phantom');A.sketchAdd({s:s.id});await A.schemeDraftFile();MB[1].f();closeModal();await desktopFlush();assert(s.sketches.length===before+1&&s.sketches.at(-1).fileKey,'Valid scheme not created');
  const owned={...ROWT.scheme(a),id:'owned-test',file:'certificate.pdf',fileKey:q.fileKey,pages:1};a.schemes.push(owned);ensureWorkspace();const item=resourceList(s).find(x=>x.id===owned.id);assert(schemeActs(s,item).some(x=>x.id===a.id),'Owning act missing from scheme links');assert(owned.frameEnabled===true,'Frame not enabled by default');
  A.executionEdit({p:p.id,e:p.executions[0].id});document.querySelector('#execution-start').value='2026-01-01';document.querySelector('#execution-end').value='2026-02-01';MB[1].f();closeModal();await desktopFlush();assert(p.executions[0].end==='2026-02-01','Execution end lost');
@@ -56,7 +56,7 @@ def receive(value):
   state=store.load()['state'];q=state['lib']['quality'][0];assert len(state['lib']['quality'])==1
   assert store.asset_path(q['fileKey'])[0].is_file();assert not list((store.root/state['projects'][0]['name']).glob('**/Материалы/**/*.pdf'))
   screenshot=Path('validation/workflow-ui.png');screenshot.parent.mkdir(exist_ok=True);window.grab().save(str(screenshot.resolve()))
-  stage=2;timer.stop();print('PASS: shared certificate create/edit/unlink/reload, filtered multi-selection, auto-save/navigation, cancelled scheme, owned scheme links, execution dates, drag ordering, export controls/company isolation, HTML templates and FIO');window.close()
+  stage=2;timer.stop();print('PASS: shared certificate create/edit/unlink/reload, filtered multi-selection, confirmed save/navigation, cancelled scheme, owned scheme links, execution dates, drag ordering, export controls/company isolation, HTML templates and FIO');window.close()
  except Exception:fail(traceback.format_exc())
 def poll():
  if stage==0:window.page.runJavaScript('window.desktopReady',ready)

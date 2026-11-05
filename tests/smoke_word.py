@@ -108,14 +108,14 @@ def ready(value):
       const sampleButton=document.querySelector('[data-a="wordSample"][data-section="reg"]');
       sampleButton.click();
       sampleButton.click();
-      for(let i=0;i<100&&(S.lib.templates.length===samplesBefore||desktopDirty||desktopSaving);i++)
+      for(let i=0;i<100&&S.lib.templates.length===samplesBefore;i++)
         await new Promise(resolve=>setTimeout(resolve,50));
       const sample=S.lib.templates.at(-1);
       if(S.lib.templates.length!==samplesBefore+1||sample.section!=='reg'||!sample.tags.includes('Реестр.ИтогоСтраниц'))
         throw Error('Registry sample was not saved');
       if(!document.querySelector('[data-word-section="reg"] [data-a="wordOpen"][data-id="'+sample.id+'"]'))
         throw Error('Registry sample is not available in the interface');
-      await A.wordSample({section:'spj'});if(!S.lib.templates.at(-1).fileKey)throw Error('Example DOCX not created');
+      await A.wordSample({section:'spj'});if(!S.lib.templates.at(-1).fileKey)throw Error('Example DOCX not created');await A.desktopSave();
       window.portableWordState=JSON.parse(JSON.stringify(S));
       window.wordSmokeResult=JSON.stringify({ok:true,pages:result.pages,basic:basic.id,profile:profile.id});
     }catch(e){window.wordSmokeResult=JSON.stringify({ok:false,error:e.stack});}})();'''.replace('SIGNED', json.dumps(signed_asset))

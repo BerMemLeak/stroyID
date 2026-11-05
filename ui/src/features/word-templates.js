@@ -233,8 +233,7 @@ A.tplAdd = async (d) => {
       date: today(),
     });
     commit("Загружен Word-шаблон «" + file.name + "»");
-    await desktopFlush();
-    toast("Word-файл сохранён в базе. Выберите его для сборки.");
+    toast("Шаблон добавлен. Нажмите «Сохранить изменения».");
   } catch (e) {
     toast(e.message);
   }
@@ -253,7 +252,6 @@ A.tplReplace = async (d) => {
       locked: false,
     });
     commit("Обновлён Word-шаблон «" + t.name + "»", t);
-    await desktopFlush();
   } catch (e) {
     toast(e.message);
   }
@@ -274,7 +272,6 @@ A.wordSelect = async (d) => {
   if (!t?.fileKey) return;
   map[d.section] = t.id;
   commit("Выбран Word-шаблон «" + t.name + "» для " + p.name, p);
-  await desktopFlush().catch((e) => toast(e.message));
 };
 A.wordPreview = async (d) => {
   try {
@@ -365,7 +362,6 @@ A.wordSample = async (d) => {
     };
     S.lib.templates.push(t);
     commit("Создан образец Word-шаблона", t);
-    await desktopFlush();
     toast("Образец создан. Откройте в Word и настройте оформление.");
   } catch (e) {
     toast("Не удалось создать образец: " + e.message);

@@ -23,6 +23,13 @@ stage = 0
 errors = []
 
 
+def confirm_close_save(window):
+    window.close()
+    QTimer.singleShot(250, lambda: window.page.runJavaScript(
+        "document.querySelector('.dlg .df .pri')?.click()"
+    ))
+
+
 def fail(message):
     errors.append(message)
     application.exit(1)
@@ -45,7 +52,7 @@ def verify_result(result):
         stage = 2
         timer.stop()
         print(f"PASS: native QWebChannel, folder startup, {value['count']} contextual views, save queue, PDF import, current cards")
-        window.page.runJavaScript("S.meta.name='Сохранено при закрытии';save();window.closeSnapshot=JSON.stringify(S)", lambda _: window.close())
+        window.page.runJavaScript("S.meta.name='Сохранено при закрытии';save();window.closeSnapshot=JSON.stringify(S)", lambda _: confirm_close_save(window))
     except Exception as e:
         fail(str(e))
 

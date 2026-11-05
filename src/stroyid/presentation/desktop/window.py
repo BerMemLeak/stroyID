@@ -146,7 +146,7 @@ class Window(QMainWindow):
         self.interface_status.setText(message)
         self.retry_interface.show()
         self.screens.setCurrentIndex(1)
-        if self.closing and self.close_timer.isActive():
+        if self.closing:
             self.close_timeout()
 
     def download(self, request):

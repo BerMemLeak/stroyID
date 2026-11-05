@@ -1,9 +1,7 @@
 /* Per-card folder persistence. */
 let desktop,
   desktopRevision = 0,
-  desktopPending = null,
   desktopSaving = null,
-  desktopTimer,
   desktopError = "",
   desktopJobs = new Set(),
   folderWarnings = [],
@@ -172,7 +170,7 @@ function acceptFolder(r, sent = null) {
   if (r.state) {
     const prefs = structuredClone(S?.ui || {});
     if (!r.preview) {
-      desktopSavedState = JSON.parse(JSON.stringify(r.state));
+      desktopSavedState = structuredClone(r.state);
       desktopSavedHeads = r.editHeads || desktopSavedHeads;
     }
     S = reconcile(S, sent ? rebase(sent, S, r.state) : r.state);
@@ -187,6 +185,7 @@ let desktopDirty = false,
   desktopEditVersion = 0,
   desktopSavedState = null,
   desktopSavedHeads = null,
+  desktopSavedApp = null,
   desktopUiDefaults = null,
   desktopRemoteWaiting = false;
 async function desktopPollFolder() {
@@ -202,44 +201,41 @@ async function desktopPollFolder() {
   acceptFolder(r);
   return before !== JSON.stringify(S);
 }
-save = function () {
-  IX = null;
+save = function ({ field = false } = {}) {
   if (!S || window.manualUiOnly) return;
-  if (typeof manualTyping === "undefined" || !manualTyping) ensureWorkspace();
-  desktopDirty = true;
-  desktopPending = true;
+  // The index holds references to records. Editing a field leaves those references valid.
+  if (!field) IX = null;
   desktopEditVersion++;
+  if (desktopDirty) return;
+  desktopDirty = true;
   renderStatus();
-  clearTimeout(desktopTimer);
-  desktopTimer = setTimeout(() => desktopFlush(true).catch(() => {}), 700);
 };
-async function desktopFlush(force = true) {
-  if (!force) return;
-  clearTimeout(desktopTimer);
+async function desktopFlush() {
   if (desktopSaving)
-    return desktopSaving.then((r) => (desktopDirty ? desktopFlush(true) : r));
+    return desktopSaving.then(() => desktopDirty ? desktopFlush() : undefined);
   if (!desktopDirty) return;
   desktopSaving = (async () => {
-    let audit;
     try {
-      if (typeof manualFlushAudit === "function") audit = manualFlushAudit();
+      ensureWorkspace();
       const version = desktopEditVersion,
-        state = JSON.parse(JSON.stringify(S));
+        state = structuredClone(S),
+        app = structuredClone(APP);
       const r = await nativeCall("save", {
         state,
         revision: desktopRevision,
         baseState: desktopSavedState,
         baseHeads: desktopSavedHeads,
-        user: APP.user,
+        user: app.user,
       });
-      acceptFolder(r, state);
-      audit = null;
-      desktopDirty = desktopEditVersion !== version;
-      desktopPending = desktopDirty;
+      const changedDuringSave = desktopEditVersion !== version;
+      acceptFolder(r, changedDuringSave ? state : null);
+      desktopDirty = changedDuringSave;
+      desktopSavedApp = app;
+      saveApp(app);
       desktopError = "";
       return r;
     } catch (e) {
-      if (typeof manualRestoreAudit === "function") desktopError = e.message;
+      desktopError = e.message;
       throw e;
     } finally {
       desktopSaving = null;
@@ -289,7 +285,6 @@ A.pickPdf = async (d) => {
     Object.assign(t, { file: f.name, fileKey: f.id, pages: f.pages });
     if ("stamped" in t) t.stamped = false;
     commit("Загружен документ «" + f.name + "»", o);
-    await desktopFlush();
     render();
   } catch (e) {
     toast(e.message);
@@ -311,7 +306,6 @@ A.schemeFile = async (d) => {
       updatedBy: APP.user,
     });
     commit("Загружена схема", s);
-    await desktopFlush();
     render();
   } catch (e) {
     toast(e.message);
@@ -319,8 +313,9 @@ A.schemeFile = async (d) => {
 };
 A.desktopSave = async () => {
   try {
-    await desktopFlush(true);
-    render();
+    document.activeElement?.blur();
+    await desktopFlush();
+    if (!desktopDirty) render();
   } catch (e) {
     modal("Изменения не сохранены", "<p>" + esc(e.message) + "</p>", [
       { l: "Закрыть" },
@@ -385,11 +380,10 @@ new QWebChannel(qt.webChannelTransport, async (channel) => {
     try {
       document.activeElement?.blur();
       closeModal();
-      if (typeof desktopAuditDirty !== "undefined" && desktopAuditDirty) save();
-      await desktopFlush(true);
       await Promise.all([...desktopJobs]);
-      await desktopFlush(true);
-      desktop.flushDone(true);
+      const leave = await manualDecision();
+      if (!leave) desktopClosing = false;
+      desktop.flushDone(leave);
     } catch (e) {
       desktopClosing = false;
       desktopError = e.message;
@@ -407,13 +401,14 @@ new QWebChannel(qt.webChannelTransport, async (channel) => {
     APP.user = APP.user || "Инженер ПТО";
     APP.current = r.root;
     APP.recent = [];
+    desktopSavedApp = structuredClone(APP);
     S = emptyDesktop();
     desktopUiDefaults = structuredClone(S.ui);
     acceptFolder(r);
     if (!location.hash) location.replace("#/home");
     if (!r.state) {
       save();
-      await desktopFlush(true);
+      await desktopFlush();
     }
     render();
     window.desktopReady = true;

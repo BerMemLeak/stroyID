@@ -107,6 +107,12 @@ def run(report_path):
             except Exception as exc:
                 fail(exc)
 
+        def confirm_close_save(window):
+            window.close()
+            QTimer.singleShot(250, lambda: window.page.runJavaScript(
+                "document.querySelector('.dlg .df .pri')?.click()"
+            ))
+
         def finished(value):
             nonlocal stage
             if stage != 1 or not value:
@@ -138,7 +144,7 @@ def run(report_path):
                 stage = 2
                 timer.stop()
                 window.page.runJavaScript(
-                    "S.meta.name='Сохранено при закрытии';save()", lambda _: window.close()
+                    "S.meta.name='Сохранено при закрытии';save()", lambda _: confirm_close_save(window)
                 )
             except Exception as exc:
                 fail(exc)
